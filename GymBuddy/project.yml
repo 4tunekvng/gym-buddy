@@ -1,0 +1,69 @@
+name: GymBuddyApp
+options:
+  bundleIdPrefix: com.gymbuddy
+  deploymentTarget:
+    iOS: "17.0"
+
+packages:
+  GymBuddy:
+    path: .
+
+targets:
+  GymBuddyApp:
+    type: application
+    platform: iOS
+    sources:
+      - path: App/GymBuddyApp
+        excludes:
+          - "Assets.xcassets"
+    info:
+      path: App/GymBuddyApp/Info.plist
+    dependencies:
+      - package: GymBuddy
+        product: CoachingEngine
+      - package: GymBuddy
+        product: PoseVision
+      - package: GymBuddy
+        product: VoiceIO
+      - package: GymBuddy
+        product: LLMClient
+      - package: GymBuddy
+        product: Persistence
+      - package: GymBuddy
+        product: HealthKitBridge
+      - package: GymBuddy
+        product: DesignSystem
+      - package: GymBuddy
+        product: Telemetry
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.gymbuddy.app
+        CODE_SIGN_STYLE: Automatic
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "5.10"
+
+  GymBuddyAppUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - App/GymBuddyAppUITests
+    dependencies:
+      - target: GymBuddyApp
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.gymbuddy.app.uitests
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: "YES"
+        TEST_TARGET_NAME: GymBuddyApp
+
+schemes:
+  GymBuddyApp:
+    build:
+      targets:
+        GymBuddyApp: all
+        GymBuddyAppUITests: test
+    test:
+      targets:
+        - GymBuddyAppUITests
+    run:
+      config: Debug

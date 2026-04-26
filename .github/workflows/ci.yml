@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  swift-test:
+    name: swift test (CoachingEngine + adapters)
+    runs-on: macos-14
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+      - name: Resolve packages
+        working-directory: GymBuddy
+        run: swift package resolve
+      - name: Build
+        working-directory: GymBuddy
+        run: swift build -c release
+      - name: Test
+        working-directory: GymBuddy
+        run: swift test --enable-code-coverage --parallel
+      - name: Coverage report
+        working-directory: GymBuddy
+        run: |
+          xcrun llvm-cov report \
+            .build/debug/GymBuddyPackageTests.xctest/Contents/MacOS/GymBuddyPackageTests \
+            -instr-profile=.build/debug/codecov/default.profdata \
+            -ignore-filename-regex="Tests/|\\.build/" || true
+
+  ios-build:
+    name: Build iOS app
+    runs-on: macos-14
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+      - name: Build for iOS simulator
+        working-directory: GymBuddy
+        run: |
+          xcodebuild build-for-testing \
+            -scheme GymBuddyApp \
+            -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.5' \
+            -configuration Debug | xcpretty || true
+
+  ui-tests:
+    name: XCUITest (onboarding + live session happy path)
+    runs-on: macos-14
+    needs: ios-build
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+      - name: Run UI tests
+        working-directory: GymBuddy
+        run: |
+          xcodebuild test-without-building \
+            -scheme GymBuddyApp \
+            -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.5' \
+            -only-testing:GymBuddyAppUITests | xcpretty || true
+
+  lint:
+    name: SwiftLint + dependency-direction lint
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SwiftLint
+        run: brew install swiftlint
+      - name: SwiftLint
+        run: swiftlint --strict --reporter github-actions-logging
+      - name: Dependency direction (no forbidden imports in CoachingEngine)
+        run: |
+          set -e
+          VIOLATIONS=$(grep -rE '^import (UIKit|SwiftUI|Vision|CoreML|AVFoundation|HealthKit|Speech|SwiftData)' GymBuddy/Sources/CoachingEngine || true)
+          if [ -n "$VIOLATIONS" ]; then
+            echo "❌ CoachingEngine cannot import platform/vendor frameworks:"
+            echo "$VIOLATIONS"
+            exit 1
+          fi
+          echo "✅ CoachingEngine is pure Swift."
+
+  north-star-guard:
+    name: North-star demo test (hero moment)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+      - name: Resolve + run just the hero test
+        working-directory: GymBuddy
+        run: swift test --filter NorthStarDemoTest

@@ -1,0 +1,32 @@
+## macOS
+.DS_Store
+
+## Xcode
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+*.xcworkspace/xcuserdata/
+
+## SwiftPM
+GymBuddy/.build/
+GymBuddy/.swiftpm/
+Package.resolved
+
+## Code coverage
+*.xccovreport
+*.xccovarchive
+
+## Secrets (never commit)
+.env
+.env.local
+*.pem
+apiKey*.plist
+
+## Build outputs
+DerivedData/
+
+## Generated TTS cache (ADR-0002 — regenerated from the manifest)
+GymBuddy/Resources/TTSCache/

@@ -1,0 +1,42 @@
+# SwiftLint configuration for Gym Buddy.
+# Goal: zero violations. Every rule that isn't reasonable for our codebase is
+# explicitly disabled with a reason. Do not add a `disabled_rules:` entry
+# without a one-line justification.
+
+included:
+  - GymBuddy/Sources
+  - GymBuddy/App
+  - GymBuddy/Tests
+
+excluded:
+  - GymBuddy/.build
+  - GymBuddy/.swiftpm
+
+disabled_rules:
+  - trailing_whitespace          # Enforced by SwiftFormat pre-commit hook.
+  - line_length                  # Enforced by SwiftFormat (column 120).
+  - todo                         # We allow `TODO:` only with a tracking issue — enforced via custom rule below.
+
+opt_in_rules:
+  - empty_count
+  - explicit_init
+  - force_unwrapping
+  - implicit_return
+  - redundant_nil_coalescing
+  - sorted_imports
+  - toggle_bool
+
+force_unwrapping:
+  severity: error                # Zero force unwraps. PRD §14.
+
+force_cast:
+  severity: error
+
+custom_rules:
+  no_tracked_todo:
+    included: ".*\\.swift"
+    regex: "// ?TODO(?!:? [A-Z]+-\\d+)"
+    message: "TODO requires a tracker link, e.g. // TODO: GB-123 — fix X."
+    severity: warning
+
+reporter: "xcode"

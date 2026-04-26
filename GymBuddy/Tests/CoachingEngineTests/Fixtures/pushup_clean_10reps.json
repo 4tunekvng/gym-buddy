@@ -1,0 +1,7 @@
+{
+  "exerciseId": "push_up",
+  "description": "10 clean push-up reps — synthetic, used in fixture loader tests and as an example of the on-disk fixture format.",
+  "samples": [
+    { "t": 0.0,  "joints": { "leftShoulder": { "x": 0.3, "y": 0.35, "confidence": 0.95 }, "rightShoulder": { "x": 0.32, "y": 0.35, "confidence": 0.95 }, "leftElbow": { "x": 0.18, "y": 0.45, "confidence": 0.95 }, "rightElbow": { "x": 0.20, "y": 0.45, "confidence": 0.95 }, "leftWrist": { "x": 0.30, "y": 0.55, "confidence": 0.95 }, "rightWrist": { "x": 0.32, "y": 0.55, "confidence": 0.95 }, "leftHip": { "x": 0.60, "y": 0.40, "confidence": 0.95 }, "rightHip": { "x": 0.60, "y": 0.41, "confidence": 0.95 }, "leftKnee": { "x": 0.75, "y": 0.40, "confidence": 0.90 }, "rightKnee": { "x": 0.75, "y": 0.41, "confidence": 0.90 }, "leftAnkle": { "x": 0.90, "y": 0.40, "confidence": 0.90 }, "rightAnkle": { "x": 0.90, "y": 0.41, "confidence": 0.90 }, "nose": { "x": 0.27, "y": 0.33, "confidence": 0.90 } } }
+  ]
+}

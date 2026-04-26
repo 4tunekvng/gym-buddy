@@ -1,0 +1,19 @@
+# SwiftFormat configuration.
+--swiftversion 5.10
+--maxwidth 120
+--commas always
+--linebreaks lf
+--indent 4
+--tabwidth 4
+--self remove
+--stripunusedargs closure-only
+--elseposition same-line
+--trimwhitespace always
+--semicolons never
+--wraparguments before-first
+--wrapcollections before-first
+--ranges spaced
+--binarygrouping ignore
+--decimalgrouping ignore
+--hexgrouping ignore
+--octalgrouping ignore
