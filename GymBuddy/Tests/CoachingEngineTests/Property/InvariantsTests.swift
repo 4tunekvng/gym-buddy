@@ -61,8 +61,9 @@ final class InvariantsTests: XCTestCase {
         // For any mix of cue severities, the priority selector returns the max.
         var rng = SystemRandomNumberGenerator()
         for _ in 0..<100 {
-            let severities: [CueSeverity] = (0..<Int.random(in: 1...6, using: &rng)).map { _ in
-                [.optimization, .quality, .safety].randomElement(using: &rng)!
+            let pool: [CueSeverity] = [.optimization, .quality, .safety]
+            let severities: [CueSeverity] = (0..<Int.random(in: 1...6, using: &rng)).compactMap { _ in
+                pool.randomElement(using: &rng)
             }
             let cues = severities.enumerated().map { i, s in
                 CueEvent(exerciseId: .pushUp, cueType: .hipSag, severity: s, repNumber: i, timestamp: 0, observationCode: "x")

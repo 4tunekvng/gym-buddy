@@ -19,7 +19,9 @@ final class ChaosUITest: XCTestCase {
             app.buttons["onboarding_next"].tap()
             // Fire all 7 Next taps as fast as possible — no sleeps, no waits.
             let next = app.buttons["onboarding_next"]
-            for _ in 0..<7 { if next.exists { next.tap() } }
+            for _ in 0..<7 where next.exists {
+                next.tap()
+            }
         }
 
         XCTAssertTrue(app.otherElements["screen_today"].waitForExistence(timeout: 10))

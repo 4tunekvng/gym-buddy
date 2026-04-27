@@ -38,17 +38,17 @@ final class LiveSessionViewModel: ObservableObject {
     // MARK: - Published UI state
 
     @Published var repCount: Int = 0
-    @Published var cueText: String? = nil
+    @Published var cueText: String?
     @Published var isPartialRep: Bool = false
     @Published var isSetupComplete: Bool = false
-    @Published var lastEncouragement: String? = nil
+    @Published var lastEncouragement: String?
     /// What the coach would have said audibly on the most recent intent. The
     /// MVP voice player is a mock (real ElevenLabs cache lands in M3), so the
     /// simulator path renders this on-screen as a "speech bubble" — that way
     /// the user can SEE the rep counts and encouragements that would otherwise
     /// be silent. On a real device with audio wired this just mirrors what's
     /// spoken aloud.
-    @Published var lastSpokenPhrase: String? = nil
+    @Published var lastSpokenPhrase: String?
     /// True when we're consuming the synthetic demo fixture (no real camera).
     /// The Live HUD shows a small banner so the user understands what they're
     /// watching is a scripted preview.
@@ -64,7 +64,7 @@ final class LiveSessionViewModel: ObservableObject {
         .init(id: .fullBody, passing: true)
     ]
     @Published var isFinished: Bool = false
-    @Published var errorMessage: String? = nil
+    @Published var errorMessage: String?
 
     // MARK: - Inputs
 

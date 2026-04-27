@@ -51,8 +51,11 @@ final class PainAndSafetyFlowTests: XCTestCase {
     func testSafetySubstitutionProducesFallbackText() async throws {
         let mock = MockLLMClient()
         mock.setScript(.fixed("It sounds like a rotator cuff tear."), for: PromptRegistry.postSetSummaryId)
-        var substituted: SafetyCategory?
-        let safe = SafeLLMClient(inner: mock, onSubstitution: { substituted = $0 })
+        // Class wrapper so a Sendable callback can write to it under Swift 6
+        // strict concurrency (capturing `var` directly is rejected).
+        final class Captured: @unchecked Sendable { var value: SafetyCategory? }
+        let captured = Captured()
+        let safe = SafeLLMClient(inner: mock, onSubstitution: { captured.value = $0 })
 
         let obs = SessionObservation(
             exerciseId: .pushUp, setNumber: 1,
@@ -76,7 +79,7 @@ final class PainAndSafetyFlowTests: XCTestCase {
             system: rendered.system, user: rendered.user
         ))
 
-        XCTAssertEqual(substituted, .diagnosis)
+        XCTAssertEqual(captured.value, .diagnosis)
         XCTAssertTrue(response.text.hasPrefix("safe:"))
 
         // Downstream fallback is deterministic, specific, never generic.

@@ -59,27 +59,27 @@ final class PlanDayPickerTests: XCTestCase {
         )
     }
 
-    func testMondayFirstConversionFromCalendarWeekday() {
+    func testMondayFirstConversionFromCalendarWeekday() throws {
         // Calendar .weekday: 1=Sunday, 2=Monday, …, 7=Saturday.
         // Our Monday-first: 1=Monday, 2=Tuesday, …, 7=Sunday.
         //
         // We can't force `Date()` directly, but we CAN build a Date for a
         // known weekday and verify the conversion.
         var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = TimeZone(identifier: "UTC")!
+        cal.timeZone = try XCTUnwrap(TimeZone(identifier: "UTC"))
 
         // 2026-04-13 is a Monday (weekday = 2 in Calendar's Sunday-first).
         var comps = DateComponents()
         comps.year = 2026; comps.month = 4; comps.day = 13
-        let monday = cal.date(from: comps)!
+        let monday = try XCTUnwrap(cal.date(from: comps))
         XCTAssertEqual(PlanDayPicker.mondayFirstWeekday(from: monday, calendar: cal), 1)
 
         comps.day = 14
-        let tuesday = cal.date(from: comps)!
+        let tuesday = try XCTUnwrap(cal.date(from: comps))
         XCTAssertEqual(PlanDayPicker.mondayFirstWeekday(from: tuesday, calendar: cal), 2)
 
         comps.day = 19
-        let sunday = cal.date(from: comps)!
+        let sunday = try XCTUnwrap(cal.date(from: comps))
         XCTAssertEqual(PlanDayPicker.mondayFirstWeekday(from: sunday, calendar: cal), 7)
     }
 }

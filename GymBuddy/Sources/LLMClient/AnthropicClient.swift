@@ -15,7 +15,15 @@ public final class AnthropicClient: LLMClientProtocol, @unchecked Sendable {
     private let configuration: LLMConfiguration
     private let credentials: Credentials
     private let urlSession: URLSession
-    private let baseURL = URL(string: "https://api.anthropic.com/v1/messages")!
+    /// Hardcoded Anthropic Messages endpoint. The constant is well-formed by
+    /// inspection so we lazy-construct via a guarded initializer rather than
+    /// `URL(string:)!` (which would trip the no-force-unwrap rule).
+    private static let baseURL: URL = {
+        guard let url = URL(string: "https://api.anthropic.com/v1/messages") else {
+            preconditionFailure("Anthropic base URL constant is malformed — fix the literal.")
+        }
+        return url
+    }()
 
     public init(
         configuration: LLMConfiguration = LLMConfiguration(),
@@ -28,7 +36,7 @@ public final class AnthropicClient: LLMClientProtocol, @unchecked Sendable {
     }
 
     public func complete(request: LLMRequest) async throws -> LLMResponse {
-        var urlRequest = URLRequest(url: baseURL)
+        var urlRequest = URLRequest(url: Self.baseURL)
         urlRequest.httpMethod = "POST"
         urlRequest.addValue(credentials.apiKey, forHTTPHeaderField: "x-api-key")
         urlRequest.addValue("2023-06-01", forHTTPHeaderField: "anthropic-version")

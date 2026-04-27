@@ -90,7 +90,9 @@ struct LiveSessionView: View {
                 spokenPhraseBubble
                     .padding(.horizontal, DS.Space.l)
 
-                Button(action: { Task { await viewModel.finishExplicitly() } }) {
+                Button {
+                    Task { await viewModel.finishExplicitly() }
+                } label: {
                     Text("End set")
                         .font(DS.Font.headline)
                         .foregroundStyle(DS.Color.textOnAccent)

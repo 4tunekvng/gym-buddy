@@ -59,7 +59,7 @@ final class PostSetSummaryEval: XCTestCase {
             priorSessionBestReps: 11, memoryReferences: []
         )
         let mock = MockLLMClient()
-        mock.setScript(.transform { req in
+        mock.setScript(.transform { _ in
             // A scripted model response that names the rep count, which is
             // what the app should verify before accepting the output.
             "Solid 13 — two more than your last set. That rep eight grind was the turning point. Rest up."

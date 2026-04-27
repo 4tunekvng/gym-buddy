@@ -20,8 +20,16 @@ enum UITestSupport {
             _ = field.waitForExistence(timeout: 5)
             field.tap()
             field.typeText(name)
-            app.buttons["onboarding_next"].tap()
-            for _ in 0..<7 { app.buttons["onboarding_next"].tap() }
+            // Drive the 7 advance taps + 1 finish tap. We re-resolve and gate
+            // on `exists` each iteration because rapid taps can outrun the
+            // SwiftUI step transition (the button identifier is the same
+            // across steps, but the underlying view re-mounts with the new
+            // step content). This makes the helper robust without slowing
+            // down anything that wasn't already waiting.
+            let next = app.buttons["onboarding_next"]
+            for _ in 0..<8 where next.waitForExistence(timeout: 2) {
+                next.tap()
+            }
         }
 
         return app.otherElements["screen_today"].waitForExistence(timeout: 10)

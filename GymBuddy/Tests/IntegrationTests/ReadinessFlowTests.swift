@@ -19,7 +19,8 @@ final class ReadinessFlowTests: XCTestCase {
         try await readinessRepo.saveCheck(check)
 
         let scaler = ReadinessScaler()
-        guard let active = try await planRepo.activePlan() else { return XCTFail() }
+        let loaded = try await planRepo.activePlan()
+        let active = try XCTUnwrap(loaded, "Plan should have been saved before scaling")
         let todayTemplate = active.weeks[0].days[0]
         let (adjusted, scaling) = scaler.scale(todayTemplate, basedOn: check)
         XCTAssertEqual(scaling.loadMultiplier, 0.9, accuracy: 1e-9)

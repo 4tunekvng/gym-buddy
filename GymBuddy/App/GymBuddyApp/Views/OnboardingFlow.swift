@@ -28,15 +28,22 @@ struct OnboardingFlow: View {
     }
 
     var body: some View {
-        VStack {
+        VStack(spacing: DS.Space.l) {
             header
-            Spacer(minLength: DS.Space.l)
-            body(for: step)
-                .transition(.opacity)
-            Spacer()
+            // The goal/equipment/tone steps each have 3–4 option cards that
+            // can push past the screen on smaller phones. Wrap the step body
+            // in a ScrollView so the user can always reach every option,
+            // and pin the Continue/Back footer at the bottom so it never
+            // scrolls out of reach.
+            ScrollView {
+                body(for: step)
+                    .transition(.opacity)
+                    .padding(.bottom, DS.Space.l)
+            }
             footer
         }
-        .padding(DS.Space.l)
+        .padding(.horizontal, DS.Space.l)
+        .padding(.bottom, DS.Space.m)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(DS.Motion.fastEase, value: step)
     }
@@ -150,7 +157,9 @@ struct OnboardingFlow: View {
                 .fixedSize(horizontal: false, vertical: true)
             ForEach(options.indices, id: \.self) { i in
                 let opt = options[i]
-                Button(action: { selection.wrappedValue = opt.0 }) {
+                Button {
+                    selection.wrappedValue = opt.0
+                } label: {
                     HStack(alignment: .firstTextBaseline) {
                         Text(opt.1)
                             .font(DS.Font.headline)

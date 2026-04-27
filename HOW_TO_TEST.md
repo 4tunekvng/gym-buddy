@@ -54,10 +54,23 @@ To use a different simulated phone:
 ./scripts/run-simulator.sh "iPhone 16"
 ```
 
-### What to try
+### The 60-second smoke test (do this first)
 
-- Tap **Get started** → walk through onboarding → land on **Today**.
-- Tap **Push-up** → tap **Start set** → watch the rep counter climb to ~10.
+This is the fastest way to confirm the hero loop is working — and the closest thing to "what an actual user feels":
+
+1. **Turn your Mac volume up** — the coach actually speaks now (via `AVSpeechSynthesizer`).
+2. `./scripts/run-simulator.sh --reset`
+3. Tap **Get started** → type a name → tap **Continue** until you reach **Today**.
+4. Tap **Push-up**, then **Start set**.
+5. **Listen.** You should hear the coach count "one, two, three…" out loud as the rep counter climbs. Around rep 7–8 you'll hear "one more" / "push" — that's the hero moment from PRD §2.
+6. Watch the speaker bubble at the bottom of the live screen — it shows the exact phrase that was just spoken, so you can verify what audio is firing even if the speakers are off.
+7. The set ends near rep 10; you'll land on the **Set done** summary.
+
+If you can hear the count and see the bubble matching, the audio + rep loop are wired correctly end-to-end.
+
+### What else to try
+
+- Walk through every onboarding step — the Continue/Back footer is pinned to the bottom and the option list scrolls if it overflows. (Step 2 "Goal" used to clip on smaller phones; this is fixed.)
 - Read the warm summary, tap **Back to today**.
 - Tap the clock icon (top-left) — you should see the session you just did.
 - Tap the gear icon (top-right) — change tone preference, kill the app, relaunch, confirm it stuck.
@@ -67,9 +80,9 @@ To use a different simulated phone:
 
 - **No camera.** The app falls back to a synthetic pose stream (a built-in 10-rep demo) — that's why the rep counter still ticks up. On a real device with the camera, this is what would be driven by your actual movement.
 - **No HealthKit data.** The mock health reader is wired up.
-- **No real TTS audio.** Voice playback is mocked (it records what would have played, but doesn't actually speak). Real audio ships in M3.
+- **System TTS only — not the production voice.** The Simulator (and on-device until M3) speaks with `AVSpeechSynthesizer`. The premium ElevenLabs phrase cache that ships in M3 is what real users will hear; this is a strictly better fallback than silence.
 
-For everything else (navigation, persistence, copy, accessibility, the hero flow logic), the simulator is faithful.
+For everything else (navigation, persistence, copy, accessibility, the hero flow logic, **and audible coaching**), the simulator is faithful.
 
 ---
 
@@ -121,7 +134,7 @@ In Xcode:
 - **Camera**: the live session will try to use the front camera. The Vision-based rep detection compiles but hasn't been calibrated against real pose data — it'll work or be jittery; that's the M2 work.
 - **HealthKit permission flow**: the app will ask for permission the first time it tries to read HRV/sleep.
 - **Microphone permission flow** (between-set Q&A path).
-- **Real haptics + audio routing** — though TTS audio is still mocked.
+- **Real haptics + audio routing** — TTS speaks through the device speakers (system synth until M3 swaps in ElevenLabs).
 - **The actual feel of the app at retina speed.**
 
 After 7 days the app will refuse to launch on the phone. Just rerun **Step 4** above to redeploy.

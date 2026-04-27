@@ -86,7 +86,12 @@ final class AppComposition: ObservableObject {
             #endif
         }()
 
-        let voicePlayer: VoicePlaying = MockVoicePlayer()   // swapped for CachedVoicePlayer when audio engine is wired
+        // Audible coach in the Simulator + on-device. The premium ElevenLabs
+        // cache lands in M3 (per ADR-0002 + PRD §7.8); until then,
+        // AVSpeechSynthesizer is a strictly better fallback than the silent
+        // MockVoicePlayer because it lets the user actually HEAR the hero
+        // moment ("one more — push") on their laptop or phone today.
+        let voicePlayer: VoicePlaying = SpeechSynthesizerVoicePlayer()
 
         return AppComposition(
             telemetry: telemetry,

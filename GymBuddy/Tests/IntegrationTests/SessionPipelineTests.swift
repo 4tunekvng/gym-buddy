@@ -13,54 +13,65 @@ final class SessionPipelineTests: XCTestCase {
     /// correct rep count, tempo baseline established, set-end emitted, and a
     /// record is persisted.
     func testFixtureDrivenSetProducesObservationAndRecord() async throws {
-        // Given a 10-rep synthetic fixture with a fatigue ramp.
         let samples = SyntheticPoseGenerator.pushUps(
             repCount: 10,
             baselineCycleSeconds: 1.5,
             fatigueRamp: (startRep: 7, endRep: 10, multiplier: 1.6)
         )
+        let orchestrator = makeOrchestrator()
+        let intents = drive(orchestrator, with: samples)
 
-        // When we drive an orchestrator through every sample.
+        assertReps1Through10(in: intents)
+        assertOneMoreFires(in: intents)
+        assertSetEndedAndDiagFires(samples: samples, intents: intents)
+
+        try await assertObservationPersists(orchestrator: orchestrator)
+    }
+
+    private func makeOrchestrator() -> SessionOrchestrator {
         let config = SessionConfig(exerciseId: .pushUp, setNumber: 1, targetReps: nil, tone: .standard)
         let context = SessionContext(userId: UUID(), tone: .standard)
-        let orchestrator = SessionOrchestrator(config: config, context: context)
+        return SessionOrchestrator(config: config, context: context)
+    }
 
+    private func drive(_ orchestrator: SessionOrchestrator, with samples: [PoseSample]) -> [CoachingIntent] {
         var intents: [CoachingIntent] = []
         for sample in samples {
             intents.append(contentsOf: orchestrator.observe(sample: sample))
         }
+        return intents
+    }
 
-        // Rep count from say-rep intents should be exactly 10.
+    private func assertReps1Through10(in intents: [CoachingIntent]) {
         let repCounts = intents.compactMap { intent -> Int? in
             if case .sayRepCount(let n, _) = intent { return n }
             return nil
         }
         XCTAssertEqual(repCounts, Array(1...10))
+    }
 
-        // At least one encouragement intent should fire during the fatigue ramp.
-        let encouragements = intents.compactMap { intent -> CoachingIntent.EncouragementKind? in
+    private func assertOneMoreFires(in intents: [CoachingIntent]) {
+        let kinds = intents.compactMap { intent -> CoachingIntent.EncouragementKind? in
             if case .encouragement(let kind, _, _) = intent { return kind }
             return nil
         }
-        XCTAssertTrue(encouragements.contains(.oneMore), "Expected 'one more' during fatigue")
+        XCTAssertTrue(kinds.contains(.oneMore), "Expected 'one more' during fatigue")
+    }
 
-        // Diagnostic: run SetEndDetector independently on the same samples
-        // to confirm the fixture's stillness tail triggers it.
+    /// Independently re-runs SetEndDetector on the same samples to localize a
+    /// failure if the orchestrator-routed setEnded intent is missing.
+    private func assertSetEndedAndDiagFires(samples: [PoseSample], intents: [CoachingIntent]) {
         let diagSetEnd = SetEndDetector(exerciseId: .pushUp)
         let diagRep = RepDetectorFactory.make(for: .pushUp)
         var diagFired = false
-        for s in samples {
-            if let _ = diagRep.observe(s) {
-                diagSetEnd.noteRepCompleted()
-            }
-            if diagSetEnd.observe(s) != nil {
+        for sample in samples {
+            if diagRep.observe(sample) != nil { diagSetEnd.noteRepCompleted() }
+            if diagSetEnd.observe(sample) != nil {
                 diagFired = true
                 break
             }
         }
         XCTAssertTrue(diagFired, "Fixture's stillness tail should trigger SetEndDetector on its own")
-
-        // Orchestrator-routed set-end.
         XCTAssertTrue(
             intents.contains { intent in
                 if case .setEnded = intent { return true }
@@ -68,8 +79,9 @@ final class SessionPipelineTests: XCTestCase {
             },
             "Orchestrator should emit setEnded. Diag independent detector fired: \(diagFired)"
         )
+    }
 
-        // Observation is complete and persistable.
+    private func assertObservationPersists(orchestrator: SessionOrchestrator) async throws {
         let observation = orchestrator.buildObservation()
         XCTAssertEqual(observation.totalReps, 10)
         XCTAssertNotNil(observation.tempoBaselineMs)
@@ -86,7 +98,6 @@ final class SessionPipelineTests: XCTestCase {
         XCTAssertEqual(recent.count, 1)
         XCTAssertEqual(recent.first?.performedExercises.first?.performedSets.first?.reps, 10)
 
-        // best-reps query answers correctly.
         let best = try await repo.bestReps(for: .pushUp)
         XCTAssertEqual(best, 10)
     }

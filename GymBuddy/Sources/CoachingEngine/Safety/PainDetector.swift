@@ -43,11 +43,11 @@ public struct PainDetector: Sendable {
     /// and the negated-context check passes. Otherwise nil.
     public func detect(in transcript: String) -> String? {
         let lower = transcript.lowercased()
-        for neg in Self.negatedContexts {
-            if lower.contains(neg) { return nil }
+        for neg in Self.negatedContexts where lower.contains(neg) {
+            return nil
         }
-        for phrase in Self.painPhrases {
-            if lower.contains(phrase) { return phrase }
+        for phrase in Self.painPhrases where lower.contains(phrase) {
+            return phrase
         }
         // Also catch bare "hurts" at word boundaries.
         let tokens = lower.split(whereSeparator: { !$0.isLetter })

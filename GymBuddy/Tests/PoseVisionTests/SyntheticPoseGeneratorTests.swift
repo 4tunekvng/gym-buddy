@@ -10,8 +10,8 @@ final class SyntheticPoseGeneratorTests: XCTestCase {
         // Feed through the rep detector.
         let detector = PushUpRepDetector()
         var reps = 0
-        for s in samples {
-            if detector.observe(s) != nil { reps += 1 }
+        for s in samples where detector.observe(s) != nil {
+            reps += 1
         }
         // Generator may produce reps slightly under target if dwell frames shift
         // the FSM — we require at least 3 of the 5 reps to be detected. In the
@@ -40,8 +40,8 @@ final class SyntheticPoseGeneratorTests: XCTestCase {
         let samples = SyntheticPoseGenerator.gobletSquats(repCount: 3)
         let detector = GobletSquatRepDetector()
         var reps = 0
-        for s in samples {
-            if detector.observe(s) != nil { reps += 1 }
+        for s in samples where detector.observe(s) != nil {
+            reps += 1
         }
         XCTAssertGreaterThanOrEqual(reps, 1)
     }
