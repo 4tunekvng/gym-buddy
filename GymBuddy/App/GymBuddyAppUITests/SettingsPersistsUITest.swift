@@ -8,6 +8,7 @@ final class SettingsPersistsUITest: XCTestCase {
 
     func testTonePickerPersistsAcrossRelaunch() throws {
         let app = XCUIApplication()
+        UITestSupport.configureForScriptedDemo(app)
         app.launch()
 
         // First-run or carryover state from a prior test. Either land on welcome
@@ -39,6 +40,7 @@ final class SettingsPersistsUITest: XCTestCase {
         // Relaunch to verify persistence. RootView checks for a saved profile
         // on first appearance and routes onboarded users straight to Today.
         app.terminate()
+        UITestSupport.configureForScriptedDemo(app)
         app.launch()
         XCTAssertTrue(app.otherElements["screen_today"].waitForExistence(timeout: 10),
                       "Expected onboarded user to skip welcome on relaunch")

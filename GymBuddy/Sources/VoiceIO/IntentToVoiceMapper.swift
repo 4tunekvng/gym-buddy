@@ -25,12 +25,14 @@ public struct IntentToVoiceMapper: Sendable {
         switch intent {
         case .sayRepCount(let n, _):
             let phrase = PhraseID(kind: .repCount, tone: tone, number: n)
-            try await voice.playCached(phrase)
+            let selection = try cache.select(phrase)
+            try await voice.playCached(selection)
             return phrase
 
         case .encouragement(let kind, _, _):
             let phrase = PhraseID(kind: kind.phraseKind(), tone: tone, number: nil)
-            try await voice.playCached(phrase)
+            let selection = try cache.select(phrase)
+            try await voice.playCached(selection)
             return phrase
 
         case .formCue(let cueEvent):
@@ -52,7 +54,8 @@ public struct IntentToVoiceMapper: Sendable {
         case .painStop(let trigger):
             _ = trigger
             let phrase = PhraseID(kind: .safetyPainStop, tone: tone, number: nil)
-            try await voice.playCached(phrase)
+            let selection = try cache.select(phrase)
+            try await voice.playCached(selection)
             return phrase
         }
     }

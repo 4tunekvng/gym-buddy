@@ -24,6 +24,7 @@ struct PostSessionSummaryView: View {
     @State private var summary: String = ""
     @State private var isLoading: Bool = true
     @State private var stats: [StatsRow] = []
+    @State private var summarySourceLabel: String = ""
 
     struct StatsRow: Identifiable, Equatable {
         let id = UUID()
@@ -49,6 +50,12 @@ struct PostSessionSummaryView: View {
                             .font(DS.Font.body)
                             .foregroundStyle(DS.Color.textPrimary)
                             .accessibilityIdentifier("post_session_summary_text")
+                        if !summarySourceLabel.isEmpty {
+                            Text(summarySourceLabel)
+                                .font(DS.Font.caption)
+                                .foregroundStyle(DS.Color.textSecondary)
+                                .accessibilityIdentifier("post_session_summary_source")
+                        }
                         if !stats.isEmpty {
                             Divider().background(DS.Color.separator)
                             ForEach(stats) { row in
@@ -115,17 +122,30 @@ struct PostSessionSummaryView: View {
             temperature: 0.6,
             maxTokens: 200
         )
+        let tone = (try? await composition.userProfileRepo.load())?.tone ?? .standard
         do {
             let response = try await composition.llmClient.complete(request: request)
             if response.text.hasPrefix("safe:") {
                 // Safety substitution happened — show a deterministic
                 // specific-numeric fallback instead of the safe-marker literal.
                 summary = specificFallback(for: obs)
+                summarySourceLabel = "Safety fallback"
             } else {
                 summary = response.text
+                summarySourceLabel = composition.runtimeStatus.llmLabel
             }
         } catch {
             summary = specificFallback(for: obs)
+            summarySourceLabel = "Deterministic fallback"
+        }
+
+        if !summary.isEmpty {
+            let spokenSummary = summary
+            let stream = AsyncStream<String> { continuation in
+                continuation.yield(spokenSummary)
+                continuation.finish()
+            }
+            try? await composition.voicePlayer.speakStreaming(text: stream, tone: tone)
         }
 
         isLoading = false

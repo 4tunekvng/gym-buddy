@@ -11,7 +11,7 @@ import AVFoundation
 /// This file only compiles on iOS — Vision's human-body-pose request and the
 /// camera capture session are iOS-specific. macOS test runs use the fixture
 /// detector instead.
-public final class VisionPoseDetector: NSObject, PoseDetecting, @unchecked Sendable {
+public final class VisionPoseDetector: NSObject, PoseDetecting, CameraPreviewProviding, @unchecked Sendable {
     private let captureSession = AVCaptureSession()
     private let videoOutput = AVCaptureVideoDataOutput()
     private let videoQueue = DispatchQueue(label: "com.gymbuddy.posevision.video", qos: .userInteractive)
@@ -22,6 +22,8 @@ public final class VisionPoseDetector: NSObject, PoseDetecting, @unchecked Senda
     public init(cameraPosition: AVCaptureDevice.Position = .front) {
         self.cameraPosition = cameraPosition
     }
+
+    public var previewSession: AVCaptureSession { captureSession }
 
     public func bodyStateStream() -> BodyStateStream {
         AsyncStream<BodyState> { continuation in

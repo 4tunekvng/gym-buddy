@@ -125,9 +125,10 @@ A future chore will add a Tuist/XcodeGen config so this is one command.
 
 ## Known limits / known work
 
-- **Voice cache assets** are not yet committed — Tier 1 TTS generation is a build-time step that needs an ElevenLabs key (see ADR-0002 and `docs/Privacy.md`). The app runs with silent playback until those land.
+- **Voice cache assets** are not yet committed — Tier 1 TTS generation is a build-time step that needs an ElevenLabs key (see ADR-0002 and `docs/Privacy.md`). Until then the app uses the system speech synthesizer, but now rotates phrase variants and reflects the selected coaching tone more clearly.
 - **Full Xcode is required** for iOS builds. The Command Line Tools Swift toolchain alone cannot currently build SwiftPM manifests on macOS 15/26 due to a known linker issue; CI must use the full Xcode.
-- **LLM calls are mocked by default.** Replace `MockLLMClient()` in `AppComposition.makeProduction()` with `AnthropicClient(credentials: .init(apiKey: ...))` once a key is provisioned.
+- **LLM calls are live only when configured.** Set `ANTHROPIC_API_KEY` (or `GYMBUDDY_ANTHROPIC_API_KEY`) to enable the real Anthropic client; otherwise the app stays on the deterministic fallback path and says so in the UI.
+- **UI tests now force scripted demo mode intentionally.** They set `GYMBUDDY_POSE_MODE=demo`, `GYMBUDDY_LLM_MODE=mock`, `GYMBUDDY_VOICE_MODE=mock`, and `GYMBUDDY_SCRIPTED_DEMO_PLAYBACK_RATE=3.0` so the end-to-end app tests remain deterministic without pretending the live camera path is under test or dragging the hero flow out unnecessarily.
 
 ---
 

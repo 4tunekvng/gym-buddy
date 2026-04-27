@@ -1,6 +1,5 @@
 import SwiftUI
 import CoachingEngine
-import PoseVision
 import DesignSystem
 
 #if os(iOS)
@@ -26,9 +25,6 @@ struct LiveSessionView: View {
             composition: composition,
             exerciseId: exerciseId,
             setNumber: setNumber,
-            tone: .standard,
-            memoryReferences: [],
-            userId: UUID(),
             onFinish: onFinish,
             onCancel: onCancel
         ))
@@ -36,17 +32,17 @@ struct LiveSessionView: View {
 
     var body: some View {
         ZStack {
-            DS.Color.canvas.ignoresSafeArea()
+            previewBackground
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .task { await viewModel.prepareSetupIfNeeded() }
     }
 
     @ViewBuilder
     private var content: some View {
         if viewModel.isSetupComplete {
             VStack(spacing: 0) {
-                topBar
                 if viewModel.isRunningDemoFixture {
                     demoModeBanner
                         .padding(.bottom, DS.Space.s)
@@ -90,6 +86,10 @@ struct LiveSessionView: View {
                 spokenPhraseBubble
                     .padding(.horizontal, DS.Space.l)
 
+                runtimeStatusPanel
+                    .padding(.horizontal, DS.Space.l)
+                    .padding(.bottom, DS.Space.m)
+
                 Button {
                     Task { await viewModel.finishExplicitly() }
                 } label: {
@@ -107,15 +107,26 @@ struct LiveSessionView: View {
             .animation(DS.Motion.standardSpring, value: viewModel.lastEncouragement)
             .animation(DS.Motion.fastEase, value: viewModel.lastSpokenPhrase)
         } else {
-            VStack(spacing: 0) {
-                topBar
-                Spacer(minLength: 0)
-                SetupOverlay(checks: viewModel.setupChecks) {
+            VStack(spacing: DS.Space.l) {
+                SetupOverlay(
+                    title: viewModel.setupTitle,
+                    subtitle: viewModel.setupSubtitle,
+                    checks: viewModel.setupChecks,
+                    primaryButtonTitle: viewModel.setupActionTitle,
+                    isPrimaryEnabled: viewModel.isSetupActionEnabled,
+                    secondaryButtonTitle: "Cancel",
+                    secondaryButtonAccessibilityIdentifier: "live_cancel",
+                    onSecondaryAction: {
+                        Task { await viewModel.cancel() }
+                    }
+                ) {
                     Task { await viewModel.completeSetupAndStart() }
                 }
                 .padding(.horizontal, DS.Space.m)
-                Spacer(minLength: 0)
+                runtimeStatusPanel
+                    .padding(.horizontal, DS.Space.l)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
     }
 
@@ -127,7 +138,7 @@ struct LiveSessionView: View {
         HStack(spacing: DS.Space.s) {
             Image(systemName: "wand.and.stars")
                 .foregroundStyle(.black)
-            Text("Running demo — no camera attached")
+            Text("Running scripted demo — not using the camera")
                 .font(DS.Font.caption)
                 .foregroundStyle(.black)
                 .lineLimit(2)
@@ -140,29 +151,43 @@ struct LiveSessionView: View {
         // for the simulator this needs to be visible at a glance.
         .background(DS.Color.accent, in: Capsule())
         .padding(.horizontal, DS.Space.m)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("live_demo_banner")
     }
 
-    /// Small top-right area for pre-session cancel. We can't use SwiftUI's
-    /// `.toolbar` here because the app doesn't wrap its screens in a
-    /// NavigationStack — toolbar items silently wouldn't render. Inline
-    /// placement sidesteps that and sits above the SetupOverlay (which starts
-    /// below the safe area) so it doesn't intercept overlay taps.
     @ViewBuilder
-    private var topBar: some View {
-        HStack {
-            Spacer()
-            if !viewModel.isSetupComplete {
-                Button("Cancel") {
-                    Task { await viewModel.cancel() }
+    private var previewBackground: some View {
+        if let session = viewModel.previewSession {
+            ZStack {
+                CameraPreviewView(session: session)
+                    .ignoresSafeArea()
+                LinearGradient(
+                    colors: [Color.black.opacity(0.55), Color.black.opacity(0.18)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+            }
+        } else {
+            DS.Color.canvas.ignoresSafeArea()
+        }
+    }
+
+    private var runtimeStatusPanel: some View {
+        Card {
+            VStack(alignment: .leading, spacing: DS.Space.xs) {
+                Text("Coach stack")
+                    .font(DS.Font.caption)
+                    .foregroundStyle(DS.Color.textSecondary)
+                ForEach(viewModel.runtimeSummaryLines, id: \.self) { line in
+                    Text(line)
+                        .font(DS.Font.caption)
+                        .foregroundStyle(DS.Color.textPrimary)
                 }
-                .font(DS.Font.body)
-                .foregroundStyle(DS.Color.textPrimary)
-                .padding(DS.Space.m)
-                .accessibilityIdentifier("live_cancel")
             }
         }
-        .padding(.top, DS.Space.s)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("live_runtime_status")
     }
 
     // Old-style liveHUD kept only as a stub — the live content now lives directly

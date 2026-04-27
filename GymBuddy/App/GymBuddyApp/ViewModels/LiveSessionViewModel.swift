@@ -1,5 +1,4 @@
 import Foundation
-import Combine
 import CoachingEngine
 import PoseVision
 import VoiceIO
@@ -8,196 +7,222 @@ import Telemetry
 import DesignSystem
 
 #if os(iOS)
+import AVFoundation
 
-/// Drives a single live set. Bridges the async PoseVision stream into a
-/// SwiftUI-observable model without exposing the engine types to views.
-///
-/// Lifecycle:
-///   1. `init` — configure the orchestrator and remember the composition.
-///   2. `completeSetupAndStart` — SetupOverlay is presented until this is called.
-///      Flips the four setup checks green and tries the composition's pose
-///      detector. If `start()` fails (always true in the Simulator since it
-///      has no camera, also true if the user denied camera permission), we fall
-///      back to a synthetic fixture stream so the user still sees the full
-///      coaching flow. The failure reason is surfaced in `errorMessage`.
-///   3. Pose frames arrive → orchestrator emits intents → we update UI state
-///      (rep count, cue text, encouragement) and ask the voice mapper to play
-///      the cached phrase.
-///   4. `setEnded` fires (auto from stillness, or `finishExplicitly` from the
-///      user tapping "End set") → we stop the detector, persist a
-///      `WorkoutSessionRecord` so History reflects reality next launch, write
-///      a `sessionEnded` telemetry event, and call `onFinish(observation)` so
-///      the router can hand the observation to the post-session view.
-///
-/// Concurrency:
-///   - Pose consumption runs on a detached Task.
-///   - UI-bound @Published properties are mutated via MainActor.run.
 @MainActor
 final class LiveSessionViewModel: ObservableObject {
 
-    // MARK: - Published UI state
+    enum SetupMode: Equatable {
+        case loading
+        case liveCamera
+        case forcedDemo
+        case fallbackDemo(message: String)
+    }
 
     @Published var repCount: Int = 0
     @Published var cueText: String?
     @Published var isPartialRep: Bool = false
     @Published var isSetupComplete: Bool = false
     @Published var lastEncouragement: String?
-    /// What the coach would have said audibly on the most recent intent. The
-    /// MVP voice player is a mock (real ElevenLabs cache lands in M3), so the
-    /// simulator path renders this on-screen as a "speech bubble" — that way
-    /// the user can SEE the rep counts and encouragements that would otherwise
-    /// be silent. On a real device with audio wired this just mirrors what's
-    /// spoken aloud.
     @Published var lastSpokenPhrase: String?
-    /// True when we're consuming the synthetic demo fixture (no real camera).
-    /// The Live HUD shows a small banner so the user understands what they're
-    /// watching is a scripted preview.
     @Published var isRunningDemoFixture: Bool = false
-    // MVP: all four framing checks start green so the user can tap "Start set".
-    // The real M2 work is pose-driven — each check will go red until the user is
-    // actually framed correctly. For now we present them as already-passing so
-    // the flow doesn't stall on a button the user can't enable.
     @Published var setupChecks: [SetupOverlay.Check] = [
-        .init(id: .angle, passing: true),
-        .init(id: .distance, passing: true),
-        .init(id: .lighting, passing: true),
-        .init(id: .fullBody, passing: true)
+        .init(id: .angle, passing: false),
+        .init(id: .distance, passing: false),
+        .init(id: .lighting, passing: false),
+        .init(id: .fullBody, passing: false)
     ]
     @Published var isFinished: Bool = false
     @Published var errorMessage: String?
-
-    // MARK: - Inputs
+    @Published var setupTitle: String = "Starting camera"
+    @Published var setupSubtitle: String = "Loading the live coaching setup."
+    @Published var setupActionTitle: String = "Waiting for camera"
+    @Published var isSetupActionEnabled: Bool = false
+    @Published var setupMode: SetupMode = .loading
+    @Published var previewSession: AVCaptureSession?
 
     let exerciseId: ExerciseID
     let setNumber: Int
-    let tone: CoachingTone
-
-    // MARK: - Collaborators
+    let runtimeSummaryLines: [String]
 
     private let composition: AppComposition
     private let onFinishCallback: (SessionObservation) -> Void
     private let onCancelCallback: () -> Void
-    private let orchestrator: SessionOrchestrator
     private let sessionId = UUID()
-
-    // MARK: - Runtime state
 
     private var detector: PoseDetecting?
     private var consumeTask: Task<Void, Never>?
     private var mapper: IntentToVoiceMapper?
+    private var orchestrator: SessionOrchestrator?
     private var didFinish = false
+    private var didPrepareSetup = false
 
-    // MARK: - Init
+    private var resolvedTone: CoachingTone = .standard
+    private var resolvedUserId = UUID()
+    private var priorSessionBestReps: [ExerciseID: Int] = [:]
+    private var memoryReferences: [String] = []
+    private var activeInjuryNotes: [String] = []
 
     init(
         composition: AppComposition,
         exerciseId: ExerciseID,
         setNumber: Int,
-        tone: CoachingTone,
-        memoryReferences: [String],
-        userId: UUID,
         onFinish: @escaping (SessionObservation) -> Void,
         onCancel: @escaping () -> Void
     ) {
         self.composition = composition
         self.exerciseId = exerciseId
         self.setNumber = setNumber
-        self.tone = tone
+        self.runtimeSummaryLines = composition.runtimeStatus.summaryLines
         self.onFinishCallback = onFinish
         self.onCancelCallback = onCancel
-        let context = SessionContext(
-            userId: userId,
-            tone: tone,
-            priorSessionBestReps: [:],
-            activeInjuryNotes: [],
-            memoryReferences: memoryReferences
-        )
-        let config = SessionConfig(
-            exerciseId: exerciseId,
-            setNumber: setNumber,
-            targetReps: nil,
-            tone: tone
-        )
-        self.orchestrator = SessionOrchestrator(config: config, context: context)
     }
 
-    // MARK: - User-driven events
+    func prepareSetupIfNeeded() async {
+        guard !didPrepareSetup else { return }
+        didPrepareSetup = true
+        await hydrateSessionContext()
 
-    /// Called from the SetupOverlay's "Start set" button. In MVP the four checks
-    /// are marked pass-through immediately; the real "framing OK?" logic lands
-    /// in M2 when we have live pose. After flipping them green, we start the
-    /// detector (with fallback) and begin consuming pose frames.
+        if composition.runtimeConfig.poseMode == .demo {
+            configureForcedDemoSetup()
+            return
+        }
+
+        let primary = composition.poseDetectorFactory()
+        detector = primary
+        if let previewProvider = primary as? CameraPreviewProviding {
+            previewSession = previewProvider.previewSession
+        }
+
+        do {
+            try await primary.start()
+            setupMode = .liveCamera
+            setupTitle = "Let's get you in frame"
+            setupSubtitle = "I’ll unlock Start when your framing checks are green."
+            setupActionTitle = "Start set"
+            isSetupActionEnabled = false
+            consume(stream: primary.bodyStateStream())
+        } catch {
+            await primary.stop()
+            detector = nil
+            previewSession = nil
+            configureFallbackDemo(message: Self.fallbackErrorMessage(for: error))
+        }
+    }
+
     func completeSetupAndStart() async {
         if isSetupComplete { return }
-        setupChecks = setupChecks.map { SetupOverlay.Check(id: $0.id, passing: true) }
-        isSetupComplete = true
 
-        await logTelemetry(.sessionStarted(
-            exerciseId: exerciseId.rawValue,
-            setNumber: setNumber,
-            plannedReps: nil
-        ))
-
-        await startDetectorWithFallback()
+        switch setupMode {
+        case .loading:
+            return
+        case .liveCamera:
+            guard setupChecks.allSatisfy(\.passing) else { return }
+            startLiveCameraSession()
+        case .forcedDemo, .fallbackDemo:
+            await startDemoSession()
+        }
     }
 
-    /// User tapped "End set" before the stillness detector auto-ended.
     func finishExplicitly() async {
+        guard let orchestrator else { return }
         let intents = orchestrator.finishSetExplicitly(reason: .userTapped)
         for intent in intents { await handle(intent: intent) }
         await completeLifecycle()
     }
 
-    /// User tapped cancel before the session could start. No observation saved.
     func cancel() async {
         consumeTask?.cancel()
         await detector?.stop()
         onCancelCallback()
     }
 
-    // MARK: - Detector start with graceful fallback
+    private func hydrateSessionContext() async {
+        let profile = try? await composition.userProfileRepo.load()
+        resolvedUserId = profile?.id ?? UUID()
+        resolvedTone = profile?.tone ?? .standard
 
-    private func startDetectorWithFallback() async {
+        if let best = try? await composition.sessionRepo.bestReps(for: exerciseId) {
+            priorSessionBestReps = [exerciseId: best]
+        } else {
+            priorSessionBestReps = [:]
+        }
+
+        let tags = Self.memoryTags(for: exerciseId, profile: profile)
+        let notes = (try? await composition.memoryRepo.recent(matching: tags, limit: 4)) ?? []
+        memoryReferences = notes.map(\.content)
+        activeInjuryNotes = notes
+            .filter { note in note.tags.contains(MemoryTag.injury.rawValue) || note.tags.contains(where: { $0.hasPrefix("body-part:") }) }
+            .map(\.content)
+
+        if memoryReferences.isEmpty {
+            memoryReferences = Self.seededReferences(from: profile)
+        }
+        if activeInjuryNotes.isEmpty {
+            activeInjuryNotes = Self.seededInjuryReferences(from: profile)
+        }
+    }
+
+    private func configureForcedDemoSetup() {
+        setupMode = .forcedDemo
+        setupTitle = "Scripted demo mode"
+        setupSubtitle = "This run is explicitly using the deterministic pose fixture, not the camera."
+        setupActionTitle = "Run scripted demo"
+        isSetupActionEnabled = true
+        setupChecks = Self.makeSetupChecks()
+    }
+
+    private func configureFallbackDemo(message: String) {
+        setupMode = .fallbackDemo(message: message)
+        setupTitle = "Camera unavailable"
+        setupSubtitle = "\(message) You can still run the scripted demo here."
+        setupActionTitle = "Run scripted demo"
+        isSetupActionEnabled = true
+        setupChecks = Self.makeSetupChecks()
+        errorMessage = message
+    }
+
+    private func startLiveCameraSession() {
         mapper = IntentToVoiceMapper(
-            tone: tone,
+            tone: resolvedTone,
             cache: composition.phraseCache,
             voice: composition.voicePlayer
         )
+        orchestrator = makeOrchestrator()
+        isSetupComplete = true
+        isRunningDemoFixture = false
+        setupSubtitle = "I can see you clearly. Start repping."
+        Task { await logSessionStarted() }
+    }
 
-        let primary = composition.poseDetectorFactory()
-        // Composition routes to a FixturePoseDetector on the iOS Simulator
-        // (no camera). Mark demo mode upfront so the UI shows a banner even
-        // when we don't fall through the catch path below.
-        if primary is FixturePoseDetector {
-            isRunningDemoFixture = true
-        }
-        do {
-            try await primary.start()
-            self.detector = primary
-            consume(stream: primary.bodyStateStream())
-        } catch {
-            await primary.stop()
-            // Surface the real reason and continue with a demo stream so the
-            // session still plays out. The user can retry on a real device.
-            errorMessage = Self.fallbackErrorMessage(for: error)
+    private func startDemoSession() async {
+        consumeTask?.cancel()
+        await detector?.stop()
 
-            // Realtime playback (1/30s per frame). This used to run at 3× speed
-            // for a snappy XCUITest demo, but a real user staring at the
-            // Simulator wants to SEE the rep counter tick up and the
-            // encouragements appear. 30 fps matches what the on-device camera
-            // would feed.
-            let fallback = FixturePoseDetector(
-                samples: Self.demoFixture(for: exerciseId),
-                frameInterval: 1.0 / 30.0
+        mapper = IntentToVoiceMapper(
+            tone: resolvedTone,
+            cache: composition.phraseCache,
+            voice: composition.voicePlayer
+        )
+        orchestrator = makeOrchestrator()
+
+        let fallback = FixturePoseDetector(
+            samples: Self.demoFixture(for: exerciseId),
+            frameInterval: Self.scriptedDemoFrameInterval(
+                playbackRate: composition.runtimeConfig.scriptedDemoPlaybackRate
             )
-            do {
-                try await fallback.start()
-                self.detector = fallback
-                isRunningDemoFixture = true
-                consume(stream: fallback.bodyStateStream())
-            } catch {
-                errorMessage = "Session failed to start: \(error.localizedDescription)"
-            }
+        )
+        do {
+            try await fallback.start()
+            detector = fallback
+            previewSession = nil
+            isRunningDemoFixture = true
+            isSetupComplete = true
+            setupMode = .forcedDemo
+            consume(stream: fallback.bodyStateStream())
+            await logSessionStarted()
+        } catch {
+            errorMessage = "Session failed to start: \(error.localizedDescription)"
         }
     }
 
@@ -206,24 +231,63 @@ final class LiveSessionViewModel: ObservableObject {
             for await state in stream {
                 guard let self else { break }
                 guard case .pose(let sample) = state else { continue }
-                let intents = await MainActor.run { self.orchestrator.observe(sample: sample) }
+
+                if !(await MainActor.run { self.isSetupComplete }) {
+                    let evaluation = SetupEvaluator.evaluate(sample: sample, exerciseId: await MainActor.run { self.exerciseId })
+                    await MainActor.run {
+                        self.apply(setupEvaluation: evaluation)
+                    }
+                    continue
+                }
+
+                let intents = await MainActor.run {
+                    self.orchestrator?.observe(sample: sample) ?? []
+                }
                 for intent in intents {
                     await self.handle(intent: intent)
                 }
             }
-            // Stream finished. Fixture detector ends after the last sample; if
-            // that happens without a set-end intent (edge case — fixture didn't
-            // have enough stillness tail), we finalize ourselves so the UI
-            // always progresses to the post-session summary.
+
             guard let self else { return }
             let finished = await MainActor.run { self.isFinished }
-            if !finished {
+            let started = await MainActor.run { self.isSetupComplete }
+            if started && !finished {
                 await self.completeLifecycle()
             }
         }
     }
 
-    // MARK: - Intent handling
+    private func apply(setupEvaluation: SetupEvaluation) {
+        setupMode = .liveCamera
+        setupChecks = [
+            .init(id: .angle, passing: setupEvaluation.angleOkay),
+            .init(id: .distance, passing: setupEvaluation.distanceOkay),
+            .init(id: .lighting, passing: setupEvaluation.lightingOkay),
+            .init(id: .fullBody, passing: setupEvaluation.fullBodyOkay)
+        ]
+        setupTitle = "Let's get you in frame"
+        setupSubtitle = setupEvaluation.guidance ?? "I’ll unlock Start when your framing checks are green."
+        setupActionTitle = "Start set"
+        isSetupActionEnabled = setupEvaluation.allPassing
+    }
+
+    private func makeOrchestrator() -> SessionOrchestrator {
+        SessionOrchestrator(
+            config: SessionConfig(
+                exerciseId: exerciseId,
+                setNumber: setNumber,
+                targetReps: nil,
+                tone: resolvedTone
+            ),
+            context: SessionContext(
+                userId: resolvedUserId,
+                tone: resolvedTone,
+                priorSessionBestReps: priorSessionBestReps,
+                activeInjuryNotes: activeInjuryNotes,
+                memoryReferences: memoryReferences
+            )
+        )
+    }
 
     private func handle(intent: CoachingIntent) async {
         switch intent {
@@ -231,7 +295,7 @@ final class LiveSessionViewModel: ObservableObject {
             await MainActor.run {
                 repCount = n
                 isPartialRep = false
-                cueText = nil   // clear last rep's cue
+                cueText = nil
                 lastSpokenPhrase = "\(n)"
             }
             _ = try? await mapper?.route(intent)
@@ -241,9 +305,6 @@ final class LiveSessionViewModel: ObservableObject {
             let text = Self.cueDisplayText(for: cue)
             await MainActor.run {
                 cueText = text
-                // Form cues are surfaced on-screen visually, not voiced in MVP
-                // (PRD §5.1: at most one audio phrase per rep — already used by
-                // the rep count). So we don't update lastSpokenPhrase here.
             }
             _ = try? await mapper?.route(intent)
             await logTelemetry(.cueFired(
@@ -279,9 +340,9 @@ final class LiveSessionViewModel: ObservableObject {
         didFinish = true
         consumeTask?.cancel()
         await detector?.stop()
+        guard let orchestrator else { return }
         let observation = orchestrator.buildObservation()
 
-        // Persist immediately so History reflects reality on next load.
         let record = WorkoutSessionRecord.build(
             from: [observation],
             painFlag: observation.endEvent.reason == .painPause,
@@ -306,22 +367,36 @@ final class LiveSessionViewModel: ObservableObject {
         onFinishCallback(observation)
     }
 
+    private func logSessionStarted() async {
+        await logTelemetry(.sessionStarted(
+            exerciseId: exerciseId.rawValue,
+            setNumber: setNumber,
+            plannedReps: nil
+        ))
+    }
+
     private func logTelemetry(_ kind: EventKind) async {
         await composition.telemetry.log(
             TelemetryEvent(kind: kind, sessionIdRef: sessionId)
         )
     }
 
-    // MARK: - Display helpers (static so tests don't need an instance)
-
-    /// Friendly error message for when the primary pose detector fails to start.
-    /// Pulled out so unit tests can exercise the branching without constructing
-    /// a full view model.
     static func fallbackErrorMessage(for error: Error) -> String {
-        if let posed = error as? PoseDetectionError, posed == .cameraPermissionDenied {
-            return "Camera permission denied — running a demo stream."
+        if let posed = error as? PoseDetectionError {
+            switch posed {
+            case .cameraPermissionDenied:
+                return "Camera permission was denied."
+            case .cameraUnavailable:
+                return "No usable camera was found."
+            case .sessionConfigurationFailed(let reason):
+                return "Camera setup failed (\(reason))."
+            case .alreadyStarted:
+                return "Camera preview is already running."
+            case .notStarted:
+                return "Camera preview never started."
+            }
         }
-        return "Camera unavailable — running a demo stream."
+        return "The live camera path failed to start."
     }
 
     static func cueDisplayText(for cue: CueEvent) -> String {
@@ -357,18 +432,13 @@ final class LiveSessionViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Demo fixture
-
-    /// Fixture used when the real detector is unavailable (Simulator, permission
-    /// denied). Generates a clean 10-rep set with a mild fatigue ramp so the
-    /// "one more — push" moment still surfaces in the demo.
     static func demoFixture(for exerciseId: ExerciseID) -> [PoseSample] {
         switch exerciseId {
         case .pushUp:
             return SyntheticPoseGenerator.pushUps(
-                repCount: 10,
-                baselineCycleSeconds: 1.8,
-                fatigueRamp: (startRep: 7, endRep: 10, multiplier: 1.6),
+                repCount: 13,
+                baselineCycleSeconds: 1.7,
+                fatigueRamp: (startRep: 8, endRep: 13, multiplier: 1.9),
                 partialReps: [],
                 sampleRateHz: 30
             )
@@ -376,6 +446,72 @@ final class LiveSessionViewModel: ObservableObject {
             return SyntheticPoseGenerator.gobletSquats(repCount: 8, cycleSeconds: 2.4)
         case .dumbbellRow:
             return SyntheticPoseGenerator.dumbbellRows(repCount: 10, cycleSeconds: 2.2)
+        }
+    }
+
+    private static func makeSetupChecks() -> [SetupOverlay.Check] {
+        [
+            .init(id: .angle, passing: false),
+            .init(id: .distance, passing: false),
+            .init(id: .lighting, passing: false),
+            .init(id: .fullBody, passing: false)
+        ]
+    }
+
+    private static func scriptedDemoFrameInterval(playbackRate: Double) -> TimeInterval {
+        let clampedRate = max(0.25, min(playbackRate, 8.0))
+        return (1.0 / 30.0) / clampedRate
+    }
+
+    private static func memoryTags(for exerciseId: ExerciseID, profile: UserProfile?) -> Set<String> {
+        var tags: Set<String> = [
+            MemoryTag.preference.rawValue,
+            MemoryTag.injury.rawValue
+        ]
+
+        switch exerciseId {
+        case .pushUp:
+            tags.formUnion([MemoryTag.bodyPartShoulder.rawValue, MemoryTag.bodyPartElbow.rawValue])
+        case .gobletSquat:
+            tags.formUnion([MemoryTag.bodyPartKnee.rawValue, MemoryTag.bodyPartBack.rawValue])
+        case .dumbbellRow:
+            tags.formUnion([MemoryTag.bodyPartBack.rawValue, MemoryTag.bodyPartShoulder.rawValue, MemoryTag.bodyPartElbow.rawValue])
+        }
+
+        if let profile {
+            for tag in profile.injuryBodyParts {
+                tags.insert(tag.rawValue)
+            }
+        }
+        return tags
+    }
+
+    private static func seededReferences(from profile: UserProfile?) -> [String] {
+        guard let profile else { return [] }
+
+        var notes: [String] = [
+            "Goal: \(profile.goal.rawValue).",
+            "Coaching tone: \(profile.tone.displayName)."
+        ]
+        notes.append(contentsOf: seededInjuryReferences(from: profile))
+        return notes
+    }
+
+    private static func seededInjuryReferences(from profile: UserProfile?) -> [String] {
+        guard let profile else { return [] }
+        return profile.injuryBodyParts.map {
+            switch $0 {
+            case .bodyPartKnee:
+                return "Watch the knee and keep the reps honest."
+            case .bodyPartShoulder:
+                return "Shoulder history noted — keep the pressing clean."
+            case .bodyPartBack:
+                return "Back history noted — stay organized through the torso."
+            case .bodyPartElbow:
+                return "Elbow history noted — keep the arm path clean."
+            default:
+                return "Movement history noted."
+            }
         }
     }
 }

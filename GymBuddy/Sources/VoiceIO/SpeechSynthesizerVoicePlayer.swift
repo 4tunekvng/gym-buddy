@@ -23,35 +23,18 @@ import AVFoundation
 public final class SpeechSynthesizerVoicePlayer: NSObject, VoicePlaying {
 
     private let synthesizer = AVSpeechSynthesizer()
-    private let voice: AVSpeechSynthesisVoice?
+    private let voicesByTone: [CoachingTone: AVSpeechSynthesisVoice]
     private var sessionConfigured = false
 
     public override init() {
-        // Pick the highest-quality English voice available. Apple sometimes
-        // has a "premium" voice installed that's noticeably better; fall back
-        // to the system default if not.
-        let preferred = AVSpeechSynthesisVoice.speechVoices()
-            .filter { $0.language.hasPrefix("en") }
-            .sorted { lhs, rhs in
-                // Prefer "Enhanced" / "Premium" quality over standard.
-                let order: (AVSpeechSynthesisVoiceQuality) -> Int = { quality in
-                    switch quality {
-                    case .premium: return 0
-                    case .enhanced: return 1
-                    default: return 2
-                    }
-                }
-                return order(lhs.quality) < order(rhs.quality)
-            }
-            .first
-        self.voice = preferred ?? AVSpeechSynthesisVoice(language: "en-US")
+        self.voicesByTone = Self.pickVoicesByTone()
         super.init()
     }
 
-    public func playCached(_ phrase: PhraseID) async throws {
+    public func playCached(_ selection: PhraseCache.Selection) async throws {
         await ensureAudioSession()
-        let text = Self.spokenText(for: phrase)
-        let utterance = makeUtterance(text: text, tone: phrase.tone)
+        let text = Self.spokenText(for: selection)
+        let utterance = makeUtterance(text: text, tone: selection.phrase.tone, variantIndex: selection.variant.index)
         synthesizer.speak(utterance)
     }
 
@@ -66,13 +49,13 @@ public final class SpeechSynthesizerVoicePlayer: NSObject, VoicePlaying {
                 let sentence = String(pending[...dot]).trimmingCharacters(in: .whitespaces)
                 pending = String(pending[pending.index(after: dot)...])
                 if !sentence.isEmpty {
-                    synthesizer.speak(makeUtterance(text: sentence, tone: tone))
+                    synthesizer.speak(makeUtterance(text: sentence, tone: tone, variantIndex: 0))
                 }
             }
         }
         let tail = pending.trimmingCharacters(in: .whitespaces)
         if !tail.isEmpty {
-            synthesizer.speak(makeUtterance(text: tail, tone: tone))
+            synthesizer.speak(makeUtterance(text: tail, tone: tone, variantIndex: 0))
         }
     }
 
@@ -98,22 +81,23 @@ public final class SpeechSynthesizerVoicePlayer: NSObject, VoicePlaying {
         }
     }
 
-    private func makeUtterance(text: String, tone: CoachingTone) -> AVSpeechUtterance {
+    private func makeUtterance(text: String, tone: CoachingTone, variantIndex: Int) -> AVSpeechUtterance {
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = voice
+        utterance.voice = voicesByTone[tone] ?? voicesByTone[.standard]
+        let variantBump = min(Double(variantIndex), 6.0) * 0.01
         // Tone affects rate + pitch only — content is unchanged (PRD §6.4).
         switch tone {
         case .quiet:
-            utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.95
-            utterance.pitchMultiplier = 0.95
+            utterance.rate = AVSpeechUtteranceDefaultSpeechRate * Float(0.90 + variantBump)
+            utterance.pitchMultiplier = Float(0.92 + variantBump)
             utterance.volume = 0.85
         case .standard:
-            utterance.rate = AVSpeechUtteranceDefaultSpeechRate
-            utterance.pitchMultiplier = 1.0
+            utterance.rate = AVSpeechUtteranceDefaultSpeechRate * Float(0.98 + variantBump)
+            utterance.pitchMultiplier = Float(0.98 + variantBump)
             utterance.volume = 1.0
         case .intense:
-            utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 1.07
-            utterance.pitchMultiplier = 1.05
+            utterance.rate = AVSpeechUtteranceDefaultSpeechRate * Float(1.05 + variantBump)
+            utterance.pitchMultiplier = Float(1.03 + variantBump)
             utterance.volume = 1.0
         }
         return utterance
@@ -123,17 +107,66 @@ public final class SpeechSynthesizerVoicePlayer: NSObject, VoicePlaying {
     /// on these same IDs and ships pre-recorded audio with multiple variants —
     /// for now we synthesize on the fly so the user hears the right thing in
     /// the right moment.
-    static func spokenText(for phrase: PhraseID) -> String {
+    static func spokenText(for selection: PhraseCache.Selection) -> String {
+        let phrase = selection.phrase
+        let variant = selection.variant.index
         switch phrase.kind {
         case .repCount:
-            // "1", "2", "3" — bare number is the standard counting cadence.
-            return phrase.number.map { "\($0)" } ?? ""
-        case .encourageOneMore: return "One more"
-        case .encouragePush:    return "Push"
-        case .encourageDrive:   return "Drive"
-        case .encourageLastOne: return "Last one"
-        case .encourageSteady:  return "Steady"
-        case .encourageValidate: return "There we go"
+            let number = phrase.number ?? 0
+            let options = [
+                "\(number)",
+                "Rep \(number)",
+                "\(number)."
+            ]
+            return options[variant % options.count]
+        case .encourageOneMore:
+            return variantText(
+                tone: phrase.tone,
+                variant: variant,
+                quiet: ["One more", "You've got one more", "Stay with it"],
+                standard: ["One more", "Give me one more", "You've got one more", "One clean rep"],
+                intense: ["One more", "Give me one", "Up again", "Another rep"]
+            )
+        case .encouragePush:
+            return variantText(
+                tone: phrase.tone,
+                variant: variant,
+                quiet: ["Push", "Keep pushing", "Smooth push"],
+                standard: ["Push", "Push through", "Drive it up", "Keep pushing"],
+                intense: ["Push", "Up", "Drive it", "Move"]
+            )
+        case .encourageDrive:
+            return variantText(
+                tone: phrase.tone,
+                variant: variant,
+                quiet: ["Drive", "Steady drive", "Keep it moving"],
+                standard: ["Drive", "Drive through", "Finish the rep", "Keep driving"],
+                intense: ["Drive", "Go", "Finish it", "Move now"]
+            )
+        case .encourageLastOne:
+            return variantText(
+                tone: phrase.tone,
+                variant: variant,
+                quiet: ["Last one", "Final rep", "This is the last one"],
+                standard: ["Last one", "That's the last rep", "Finish this one", "Final rep"],
+                intense: ["Last one", "Last rep", "Finish it", "End it here"]
+            )
+        case .encourageSteady:
+            return variantText(
+                tone: phrase.tone,
+                variant: variant,
+                quiet: ["Steady", "Stay steady"],
+                standard: ["Steady", "Hold it steady", "Stay organized"],
+                intense: ["Steady", "Control it", "Stay tight"]
+            )
+        case .encourageValidate:
+            return variantText(
+                tone: phrase.tone,
+                variant: variant,
+                quiet: ["There it is", "That's it"],
+                standard: ["There we go", "That's it", "Yes, that's the rep"],
+                intense: ["Yes", "There it is", "That's it", "Good"]
+            )
         case .safetyPainStop:
             return "Let's stop there. Sharp pain is a stop signal. " +
                 "If it keeps hurting, please check in with a physician."
@@ -145,6 +178,56 @@ public final class SpeechSynthesizerVoicePlayer: NSObject, VoicePlaying {
         case .safetyGenericDeflect:
             return "That's outside what I can help with. Let's get back to the set."
         }
+    }
+
+    private static func pickVoicesByTone() -> [CoachingTone: AVSpeechSynthesisVoice] {
+        let ranked = AVSpeechSynthesisVoice.speechVoices()
+            .filter { $0.language.hasPrefix("en") }
+            .sorted { lhs, rhs in
+                let lhsRank = voiceRank(lhs)
+                let rhsRank = voiceRank(rhs)
+                if lhsRank != rhsRank { return lhsRank < rhsRank }
+                return lhs.identifier < rhs.identifier
+            }
+
+        let fallback = ranked.first ?? AVSpeechSynthesisVoice(language: "en-US")
+        let uniqueVoices = Array(ranked.prefix(3))
+        let quiet = uniqueVoices.indices.contains(0) ? uniqueVoices[0] : fallback
+        let standard = uniqueVoices.indices.contains(1) ? uniqueVoices[1] : quiet
+        let intense = uniqueVoices.indices.contains(2) ? uniqueVoices[2] : standard
+        return [
+            .quiet: quiet,
+            .standard: standard,
+            .intense: intense
+        ].compactMapValues { $0 }
+    }
+
+    private static func voiceRank(_ voice: AVSpeechSynthesisVoice) -> Int {
+        switch voice.quality {
+        case .premium: return 0
+        case .enhanced: return 1
+        default: return 2
+        }
+    }
+
+    private static func variantText(
+        tone: CoachingTone,
+        variant: Int,
+        quiet: [String],
+        standard: [String],
+        intense: [String]
+    ) -> String {
+        let options: [String]
+        switch tone {
+        case .quiet:
+            options = quiet
+        case .standard:
+            options = standard
+        case .intense:
+            options = intense
+        }
+        guard !options.isEmpty else { return "" }
+        return options[variant % options.count]
     }
 }
 

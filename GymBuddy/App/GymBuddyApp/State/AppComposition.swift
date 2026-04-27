@@ -17,6 +17,8 @@ import SwiftData
 @MainActor
 final class AppComposition: ObservableObject {
     let telemetry: TelemetryLog
+    let runtimeConfig: AppRuntimeConfiguration
+    let runtimeStatus: AppRuntimeStatus
     let poseDetectorFactory: () -> PoseDetecting
     let voicePlayer: VoicePlaying
     let phraseCache: PhraseCache
@@ -31,6 +33,8 @@ final class AppComposition: ObservableObject {
 
     init(
         telemetry: TelemetryLog,
+        runtimeConfig: AppRuntimeConfiguration,
+        runtimeStatus: AppRuntimeStatus,
         poseDetectorFactory: @escaping () -> PoseDetecting,
         voicePlayer: VoicePlaying,
         phraseCache: PhraseCache,
@@ -44,6 +48,8 @@ final class AppComposition: ObservableObject {
         modelContainer: ModelContainer
     ) {
         self.telemetry = telemetry
+        self.runtimeConfig = runtimeConfig
+        self.runtimeStatus = runtimeStatus
         self.poseDetectorFactory = poseDetectorFactory
         self.voicePlayer = voicePlayer
         self.phraseCache = phraseCache
@@ -60,6 +66,7 @@ final class AppComposition: ObservableObject {
     /// Production composition. API keys are read from `Info.plist` at runtime.
     static func makeProduction() -> AppComposition {
         let container = Self.openContainer()
+        let runtimeConfig = AppRuntimeConfiguration.current()
 
         let userRepo = SwiftDataUserProfileRepository(container: container)
         let planRepo = SwiftDataPlanRepository(container: container)
@@ -76,7 +83,12 @@ final class AppComposition: ObservableObject {
         // runs without phrase-cache-miss errors.
         let phraseCache = Self.bootstrapPhraseCache()
 
-        let llm: LLMClientProtocol = MockLLMClient()   // swapped for AnthropicClient in release builds
+        let llm: LLMClientProtocol = {
+            if runtimeConfig.usesLiveAnthropic, let apiKey = runtimeConfig.anthropicAPIKey {
+                return AnthropicClient(credentials: .init(apiKey: apiKey))
+            }
+            return MockLLMClient()
+        }()
 
         let healthReader: HealthReader = {
             #if canImport(HealthKit) && !os(macOS)
@@ -91,26 +103,27 @@ final class AppComposition: ObservableObject {
         // AVSpeechSynthesizer is a strictly better fallback than the silent
         // MockVoicePlayer because it lets the user actually HEAR the hero
         // moment ("one more — push") on their laptop or phone today.
-        let voicePlayer: VoicePlaying = SpeechSynthesizerVoicePlayer()
+        let voicePlayer: VoicePlaying = {
+            switch runtimeConfig.voiceMode {
+            case .system:
+                return SpeechSynthesizerVoicePlayer()
+            case .mock:
+                return MockVoicePlayer()
+            }
+        }()
+
+        let runtimeStatus = AppRuntimeStatus(
+            pose: runtimeConfig.poseMode == .demo ? .scriptedDemoForced : .liveCamera,
+            llm: runtimeConfig.usesLiveAnthropic ? .liveClaude(modelId: LLMConfiguration().modelId) : .deterministicFallback,
+            voice: runtimeConfig.voiceMode == .mock ? .mock : .systemSynth
+        )
 
         return AppComposition(
             telemetry: telemetry,
+            runtimeConfig: runtimeConfig,
+            runtimeStatus: runtimeStatus,
             poseDetectorFactory: {
-                // Simulator has no camera: AVCaptureDevice.requestAccess would
-                // pop a permission dialog that nothing can answer in a test
-                // harness (and it looks broken to anyone exploring the app in
-                // Simulator). Use a looped demo fixture there so the UI always
-                // does something visible. On-device uses Apple Vision.
-                #if targetEnvironment(simulator)
-                return FixturePoseDetector(
-                    samples: SyntheticPoseGenerator.pushUps(
-                        repCount: 10,
-                        baselineCycleSeconds: 1.8,
-                        fatigueRamp: (startRep: 7, endRep: 10, multiplier: 1.6)
-                    ),
-                    frameInterval: 1.0 / 90.0
-                )
-                #elseif canImport(Vision) && !os(macOS)
+                #if canImport(Vision) && !os(macOS)
                 return VisionPoseDetector(cameraPosition: .front)
                 #else
                 return FixturePoseDetector(samples: [])
@@ -149,10 +162,13 @@ final class AppComposition: ObservableObject {
         var variants: [PhraseID: [PhraseCache.Variant]] = [:]
         for tone in CoachingTone.allCases {
             for id in PhraseManifest.required(for: tone) {
-                variants[id] = [PhraseCache.Variant(index: 0, assetName: "placeholder:\(id.assetName)")]
+                let variantCount = PhraseManifest.minimumVariantsByKind[id.kind] ?? 1
+                variants[id] = (0..<variantCount).map {
+                    PhraseCache.Variant(index: $0, assetName: "placeholder:\(id.assetName):\($0)")
+                }
             }
         }
-        return PhraseCache(variants: variants, windowSize: 0)
+        return PhraseCache(variants: variants, windowSize: 3)
     }
 
     /// Preview/in-memory composition. Used by SwiftUI previews and the XCUITest
@@ -166,6 +182,18 @@ final class AppComposition: ObservableObject {
         }
         return AppComposition(
             telemetry: NoOpTelemetryLog(),
+            runtimeConfig: AppRuntimeConfiguration(
+                poseMode: .demo,
+                llmMode: .mock,
+                voiceMode: .mock,
+                anthropicAPIKey: nil,
+                scriptedDemoPlaybackRate: 1.0
+            ),
+            runtimeStatus: AppRuntimeStatus(
+                pose: .scriptedDemoForced,
+                llm: .deterministicFallback,
+                voice: .mock
+            ),
             poseDetectorFactory: { FixturePoseDetector(samples: SyntheticPoseGenerator.pushUps(repCount: 5)) },
             voicePlayer: MockVoicePlayer(),
             phraseCache: bootstrapPhraseCache(),

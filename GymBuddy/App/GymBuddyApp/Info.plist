@@ -18,5 +18,17 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>ANTHROPIC_API_KEY</key>
+	<string></string>
+	<key>GYMBUDDY_LLM_MODE</key>
+	<string>auto</string>
+	<key>GYMBUDDY_POSE_MODE</key>
+	<string>auto</string>
+	<key>GYMBUDDY_SCRIPTED_DEMO_PLAYBACK_RATE</key>
+	<string>1.0</string>
+	<key>GYMBUDDY_VOICE_MODE</key>
+	<string>system</string>
+	<key>NSCameraUsageDescription</key>
+	<string>GymBuddy uses the camera to count reps, watch form, and show live setup feedback during coached sets.</string>
 </dict>
 </plist>

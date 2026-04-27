@@ -239,7 +239,59 @@ struct OnboardingFlow: View {
         Task {
             try? await composition.userProfileRepo.save(profile)
             try? await composition.planRepo.save(plan)
+            for note in seedMemoryNotes(from: profile) {
+                try? await composition.memoryRepo.add(note)
+            }
             await MainActor.run { onFinish() }
+        }
+    }
+
+    private func seedMemoryNotes(from profile: UserProfile) -> [CoachMemoryNote] {
+        var notes: [CoachMemoryNote] = [
+            CoachMemoryNote(
+                content: "Goal is \(profile.goal.rawValue).",
+                tags: [goalTag(for: profile.goal).rawValue]
+            ),
+            CoachMemoryNote(
+                content: "Prefers the \(profile.tone.displayName.lowercased()) coaching tone.",
+                tags: [MemoryTag.preference.rawValue]
+            )
+        ]
+
+        for bodyPart in profile.injuryBodyParts {
+            notes.append(CoachMemoryNote(
+                content: injuryNote(for: bodyPart),
+                tags: [MemoryTag.injury.rawValue, bodyPart.rawValue]
+            ))
+        }
+        return notes
+    }
+
+    private func goalTag(for goal: PlanGenerator.Inputs.Goal) -> MemoryTag {
+        switch goal {
+        case .strength:
+            return .goalStrength
+        case .hypertrophy:
+            return .goalHypertrophy
+        case .recomp:
+            return .goalRecomp
+        case .maintenance:
+            return .goalHypertrophy
+        }
+    }
+
+    private func injuryNote(for tag: MemoryTag) -> String {
+        switch tag {
+        case .bodyPartKnee:
+            return "User mentioned knee irritation."
+        case .bodyPartShoulder:
+            return "User mentioned shoulder irritation."
+        case .bodyPartBack:
+            return "User mentioned lower-back irritation."
+        case .bodyPartElbow:
+            return "User mentioned elbow irritation."
+        default:
+            return "User mentioned an injury consideration."
         }
     }
 }

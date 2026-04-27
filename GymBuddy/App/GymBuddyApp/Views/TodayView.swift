@@ -28,6 +28,9 @@ struct TodayView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: DS.Space.l) {
                     greetingCard
+                    if composition.runtimeStatus.hasFallbacks {
+                        runtimeStatusCard
+                    }
                     todayCard
                     exercisesList
                     Spacer()
@@ -95,6 +98,22 @@ struct TodayView: View {
                 }
             }
         }
+    }
+
+    private var runtimeStatusCard: some View {
+        Card {
+            VStack(alignment: .leading, spacing: DS.Space.s) {
+                Text("Current demo stack")
+                    .font(DS.Font.headline)
+                    .foregroundStyle(DS.Color.textPrimary)
+                ForEach(composition.runtimeStatus.summaryLines, id: \.self) { line in
+                    Text(line)
+                        .font(DS.Font.caption)
+                        .foregroundStyle(DS.Color.textSecondary)
+                }
+            }
+        }
+        .accessibilityIdentifier("today_runtime_status")
     }
 
     private var exercisesList: some View {

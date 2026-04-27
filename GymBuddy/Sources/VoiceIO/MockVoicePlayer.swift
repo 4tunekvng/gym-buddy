@@ -7,7 +7,7 @@ import CoachingEngine
 public actor MockVoicePlayer: VoicePlaying {
     public struct Played: Equatable, Sendable {
         public enum Kind: Equatable, Sendable {
-            case cached(PhraseID)
+            case cached(PhraseCache.Selection)
             case stream(text: String, tone: CoachingTone)
         }
         public let kind: Kind
@@ -19,8 +19,8 @@ public actor MockVoicePlayer: VoicePlaying {
 
     public init() {}
 
-    public func playCached(_ phrase: PhraseID) async throws {
-        history.append(Played(kind: .cached(phrase), timestamp: Date()))
+    public func playCached(_ selection: PhraseCache.Selection) async throws {
+        history.append(Played(kind: .cached(selection), timestamp: Date()))
     }
 
     public func speakStreaming(
@@ -40,7 +40,13 @@ public actor MockVoicePlayer: VoicePlaying {
 
     public func cachedHistory() -> [PhraseID] {
         history.compactMap {
-            if case .cached(let id) = $0.kind { return id } else { return nil }
+            if case .cached(let selection) = $0.kind { return selection.phrase } else { return nil }
+        }
+    }
+
+    public func cachedSelections() -> [PhraseCache.Selection] {
+        history.compactMap {
+            if case .cached(let selection) = $0.kind { return selection } else { return nil }
         }
     }
 

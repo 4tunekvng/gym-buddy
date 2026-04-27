@@ -46,6 +46,13 @@ struct SettingsView: View {
                 Section("About") {
                     Label("Version 1.0 (MVP)", systemImage: "info.circle")
                 }
+                Section("Runtime") {
+                    ForEach(composition.runtimeStatus.summaryLines, id: \.self) { line in
+                        Text(line)
+                            .font(DS.Font.caption)
+                            .foregroundStyle(DS.Color.textSecondary)
+                    }
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

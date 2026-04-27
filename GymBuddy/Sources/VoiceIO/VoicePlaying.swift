@@ -11,7 +11,7 @@ import CoachingEngine
 public protocol VoicePlaying: AnyObject, Sendable {
     /// Begin audio for a cached phrase. Returns when scheduling completes — the
     /// actual audio may still be playing. Call is cheap and safe from any actor.
-    func playCached(_ phrase: PhraseID) async throws
+    func playCached(_ selection: PhraseCache.Selection) async throws
 
     /// Stream contextual speech. Text flows in, audio plays out. Returns when
     /// playback is finished or cancelled.

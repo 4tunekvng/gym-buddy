@@ -5,7 +5,7 @@ Three ways to do this, ordered from easiest to most realistic. Pick the one that
 | Option | Realism | Cost | Setup time | What you can test |
 |---|---|---|---|---|
 | **A. iOS Simulator on your Mac** | Mid | Free | 1 min | All the screens, navigation, persistence, the synthetic-pose hero demo |
-| **B. Your real iPhone** | High | Free | 15–30 min one-time | Everything in A, plus a real device (no real camera/Vision yet — that's M2 work) |
+| **B. Your real iPhone** | High | Free | 15–30 min one-time | Everything in A, plus the real front-camera path, permission prompts, haptics, and device audio |
 | **C. TestFlight (share with friends)** | Highest | $99/year | 1–2 hours one-time | What an actual beta tester sees |
 
 You only need **one** of these to get going. Most people start with A and move to B once they want to feel the app on their actual phone.
@@ -78,9 +78,12 @@ If you can hear the count and see the bubble matching, the audio + rep loop are 
 
 ### Limitations of the Simulator
 
-- **No camera by default.** The app falls back to a synthetic pose stream (a built-in 10-rep demo) — that's why the rep counter still ticks up. On a real device with the camera, this is what would be driven by your actual movement. *Tip:* you can route your Mac's webcam into the Simulator via **Simulator → Device → Camera → Mac Camera** and point it at yourself — the synthetic-pose fallback stays on (real Vision integration is M2 work), but you'll see your own face come through the camera preview.
+- **Camera is now honest.** The default runtime is `auto`: the app tries the live camera path first, shows the preview if it starts, and only offers the scripted rep demo as an explicit button if camera permission/configuration fails. If you want the deterministic demo on purpose, launch with `GYMBUDDY_POSE_MODE=demo`.
 - **No HealthKit data.** The mock health reader is wired up.
-- **System TTS only — not the production voice.** The Simulator (and on-device until M3) speaks with `AVSpeechSynthesizer`. The premium ElevenLabs phrase cache that ships in M3 is what real users will hear; this is a strictly better fallback than silence.
+- **System TTS is still the fallback voice.** The app now rotates real phrase variants and honors the saved tone, but the premium cached voice library is still future work. The runtime status card tells you exactly which voice path is active.
+
+- **AI mode is visible.** If `ANTHROPIC_API_KEY` (or `GYMBUDDY_ANTHROPIC_API_KEY`) is present, post-set summaries use the live Anthropic client; otherwise the app tells you it is using the deterministic fallback summary path.
+- **UI automation speeds the scripted demo up on purpose.** The XCUITests set `GYMBUDDY_SCRIPTED_DEMO_PLAYBACK_RATE=3.0` so they still exercise the full demo loop without stretching a deterministic run into a minute-long test.
 
 For everything else (navigation, persistence, copy, accessibility, the hero flow logic, **and audible coaching**), the simulator is faithful.
 
@@ -131,7 +134,7 @@ In Xcode:
 
 ### What you can now test on the real device
 
-- **Camera**: the live session will try to use the front camera. The Vision-based rep detection compiles but hasn't been calibrated against real pose data — it'll work or be jittery; that's the M2 work.
+- **Camera**: the live session now genuinely tries to use the front camera first. If you deny permission or the simulator/device cannot provide a usable feed, the app stays honest and offers the scripted demo instead of silently counting fake reps.
 - **HealthKit permission flow**: the app will ask for permission the first time it tries to read HRV/sleep.
 - **Microphone permission flow** (between-set Q&A path).
 - **Real haptics + audio routing** — TTS speaks through the device speakers (system synth until M3 swaps in ElevenLabs).

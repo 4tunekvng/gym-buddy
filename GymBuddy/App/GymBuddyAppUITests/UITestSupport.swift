@@ -7,10 +7,18 @@ import XCTest
 /// helpers make each test tolerant of either starting point.
 enum UITestSupport {
 
+    static func configureForScriptedDemo(_ app: XCUIApplication) {
+        app.launchEnvironment["GYMBUDDY_POSE_MODE"] = "demo"
+        app.launchEnvironment["GYMBUDDY_LLM_MODE"] = "mock"
+        app.launchEnvironment["GYMBUDDY_VOICE_MODE"] = "mock"
+        app.launchEnvironment["GYMBUDDY_SCRIPTED_DEMO_PLAYBACK_RATE"] = "3.0"
+    }
+
     /// Launch the app and ensure we end on the Today screen with a profile.
     /// If the app shows Welcome, runs through onboarding with a generic name.
     @discardableResult
     static func launchAndReachTodayScreen(_ app: XCUIApplication, name: String = "QA") -> Bool {
+        configureForScriptedDemo(app)
         app.launch()
 
         let welcome = app.buttons["welcome_start_button"]

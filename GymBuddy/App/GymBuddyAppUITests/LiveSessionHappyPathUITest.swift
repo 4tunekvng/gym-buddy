@@ -5,10 +5,9 @@ import XCTest
 /// Walks: (welcome → onboarding →)? today → tap Push-up → setup overlay →
 /// "Start set" → rep counter advances → post-session summary → back to today.
 ///
-/// Because the iOS Simulator has no camera, `AppComposition.makeProduction`
-/// injects a synthetic pose fixture (10-rep push-up set with fatigue ramp)
-/// that drives the real `SessionOrchestrator`. This test exercises the full
-/// production code path end-to-end, only with a different body-state source.
+/// The test explicitly forces scripted demo mode through launch environment.
+/// That keeps the end-to-end run deterministic while making the fallback mode
+/// visible in the UI rather than silently pretending the camera path is live.
 final class LiveSessionHappyPathUITest: XCTestCase {
 
     func testOnboardThenPushUpSet() throws {
@@ -19,15 +18,18 @@ final class LiveSessionHappyPathUITest: XCTestCase {
         XCTAssertTrue(pushUpStart.waitForExistence(timeout: 5))
         pushUpStart.tap()
 
+        XCTAssertTrue(app.otherElements["live_runtime_status"].waitForExistence(timeout: 5))
         let setupStart = app.buttons["setup_start_button"]
         XCTAssertTrue(setupStart.waitForExistence(timeout: 5))
         setupStart.tap()
 
+        XCTAssertTrue(app.otherElements["live_demo_banner"].waitForExistence(timeout: 5))
         let counter = app.staticTexts["rep_counter"]
         XCTAssertTrue(counter.waitForExistence(timeout: 10))
 
         XCTAssertTrue(app.otherElements["screen_post_session"].waitForExistence(timeout: 25))
         XCTAssertTrue(app.staticTexts["post_session_summary_text"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["post_session_summary_source"].waitForExistence(timeout: 5))
 
         app.buttons["post_session_done"].tap()
         XCTAssertTrue(app.otherElements["screen_today"].waitForExistence(timeout: 5))

@@ -30,11 +30,35 @@ public struct SetupOverlay: View {
         }
     }
 
+    public let title: String
+    public let subtitle: String?
     public let checks: [Check]
+    public let primaryButtonTitle: String
+    public let isPrimaryEnabled: Bool?
+    public let secondaryButtonTitle: String?
+    public let secondaryButtonAccessibilityIdentifier: String?
     public let onConfirm: () -> Void
+    public let onSecondaryAction: (() -> Void)?
 
-    public init(checks: [Check], onConfirm: @escaping () -> Void) {
+    public init(
+        title: String = "Let's get you in frame",
+        subtitle: String? = nil,
+        checks: [Check],
+        primaryButtonTitle: String? = nil,
+        isPrimaryEnabled: Bool? = nil,
+        secondaryButtonTitle: String? = nil,
+        secondaryButtonAccessibilityIdentifier: String? = nil,
+        onSecondaryAction: (() -> Void)? = nil,
+        onConfirm: @escaping () -> Void
+    ) {
+        self.title = title
+        self.subtitle = subtitle
         self.checks = checks
+        self.primaryButtonTitle = primaryButtonTitle ?? "Start set"
+        self.isPrimaryEnabled = isPrimaryEnabled
+        self.secondaryButtonTitle = secondaryButtonTitle
+        self.secondaryButtonAccessibilityIdentifier = secondaryButtonAccessibilityIdentifier
+        self.onSecondaryAction = onSecondaryAction
         self.onConfirm = onConfirm
     }
 
@@ -42,9 +66,15 @@ public struct SetupOverlay: View {
 
     public var body: some View {
         VStack(spacing: DS.Space.l) {
-            Text("Let's get you in frame")
+            Text(title)
                 .font(DS.Font.title)
                 .foregroundStyle(DS.Color.textPrimary)
+            if let subtitle, !subtitle.isEmpty {
+                Text(subtitle)
+                    .font(DS.Font.body)
+                    .foregroundStyle(DS.Color.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
             VStack(spacing: DS.Space.m) {
                 ForEach(checks) { check in
                     HStack(spacing: DS.Space.m) {
@@ -67,10 +97,28 @@ public struct SetupOverlay: View {
             .background(DS.Color.surface)
             .clipShape(RoundedRectangle(cornerRadius: DS.Radius.large))
 
-            PrimaryButton(title: allPassing ? "Start set" : "Waiting for all checks", action: onConfirm)
+            PrimaryButton(
+                title: resolvedPrimaryEnabled ? primaryButtonTitle : "Waiting for all checks",
+                action: onConfirm
+            )
                 .accessibilityIdentifier("setup_start_button")
-                .disabled(!allPassing)
+                .disabled(!resolvedPrimaryEnabled)
+
+            if let secondaryButtonTitle, let onSecondaryAction {
+                Button(action: onSecondaryAction) {
+                    Text(secondaryButtonTitle)
+                        .font(DS.Font.body)
+                        .foregroundStyle(DS.Color.textSecondary)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier(secondaryButtonAccessibilityIdentifier ?? "")
+            }
         }
         .padding(DS.Space.l)
+    }
+
+    private var resolvedPrimaryEnabled: Bool {
+        isPrimaryEnabled ?? allPassing
     }
 }
