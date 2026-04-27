@@ -37,6 +37,7 @@ struct OnboardingFlow: View {
             footer
         }
         .padding(DS.Space.l)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(DS.Motion.fastEase, value: step)
     }
 
@@ -142,22 +143,31 @@ struct OnboardingFlow: View {
         options: [(T, String)]
     ) -> some View {
         VStack(alignment: .leading, spacing: DS.Space.m) {
-            Text(title).font(DS.Font.title).foregroundStyle(DS.Color.textPrimary)
+            Text(title)
+                .font(DS.Font.title)
+                .foregroundStyle(DS.Color.textPrimary)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
             ForEach(options.indices, id: \.self) { i in
                 let opt = options[i]
                 Button(action: { selection.wrappedValue = opt.0 }) {
-                    HStack {
+                    HStack(alignment: .firstTextBaseline) {
                         Text(opt.1)
                             .font(DS.Font.headline)
                             .foregroundStyle(DS.Color.textPrimary)
-                        Spacer()
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: DS.Space.s)
                         Image(systemName: selection.wrappedValue == opt.0 ? "largecircle.fill.circle" : "circle")
                             .foregroundStyle(selection.wrappedValue == opt.0 ? DS.Color.accent : DS.Color.textSecondary)
                     }
                     .padding(DS.Space.m)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .background(DS.Color.surface)
                     .clipShape(RoundedRectangle(cornerRadius: DS.Radius.medium))
                 }
+                .buttonStyle(.plain)
             }
         }
     }

@@ -4,6 +4,35 @@ Notes for the next developer working on this repo. Dates + whys, not every file 
 
 ---
 
+## 2026-04-26 (later) — Make the Simulator session feel alive; fix views that didn't fill the screen
+
+User feedback: "I can't test the main part — sound and camera don't work" and "texts get cut off, things occlude". Both were real.
+
+### Sim path now visibly animates the coach
+
+The Simulator has no camera and audio is mocked, so the previous live session was eerily silent and felt broken. Three additions make it useful:
+
+- **Visible "speech bubble"** — `LiveSessionViewModel.lastSpokenPhrase` is published on every rep count, encouragement, and pain-stop intent. The live screen renders it as a small `\u{201C}phrase\u{201D}` bubble. When real audio ships in M3 it'll just mirror what's spoken; today it lets you SEE the coach moment-by-moment.
+- **"Running demo — no camera attached" banner** — high-contrast accent capsule that appears when the active detector is a `FixturePoseDetector`. The check is `primary is FixturePoseDetector` set immediately after `composition.poseDetectorFactory()`, so it fires regardless of whether we used the sim-only short-circuit in `AppComposition` or fell through the catch.
+- **Realtime fixture playback** — fallback `FixturePoseDetector(frameInterval:)` was 1/90s (3× speed) for snappy XCUITests; that meant a real human watching the simulator saw the rep counter blip from 0→10 in ~2 seconds. Now 1/30s. The hero set takes ~25s end to end.
+
+### Layout fixes
+
+- **`TodayView`/`HistoryView`/`SettingsView`/`OnboardingFlow`/`PostSessionSummaryView`** — added `.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)` (or `.center` for PostSession). Without it, the parent ZStack in RootView centres the natural content size and leaves a band of canvas above and below. Screens with one or two cards looked floaty before.
+- **`LiveSessionView`** — restructured into a single `VStack` instead of overlay'd siblings of a ZStack. The previous structure had layered chrome (top bar + bottom bar) as `ZStack` siblings of the content; SwiftUI's vertical-space negotiation between flexible content and fixed chrome was unreliable on iOS 26 — the overlay VStack was sizing to its content height, so the bottom bar didn't render at all in screenshots. The new structure has chrome and content as direct VStack children with explicit Spacers, no overlays.
+- **Onboarding pickers** — added `.lineLimit(2) + .multilineTextAlignment(.leading) + .fixedSize(horizontal: false, vertical: true)` to option labels and `.frame(maxWidth: .infinity, alignment: .leading)` on the row container. Long labels like "Quiet — spare the words" now wrap cleanly inside the option card instead of truncating.
+
+### Quality
+
+- 157 unit tests still green.
+- 12 XCUITests still green (including the screenshot tour, which runs the new layout end to end without regressing).
+
+### Known caveats (not a regression — pre-existing)
+
+- The screenshot tour saves PNGs at full retina (1206 × 2622 for iPhone 17). The Read/Preview tools used during this session aggressively crop tall portrait images, which looked like the app was clipping content. The actual rendered app fills the screen correctly. A future change could downscale the PNGs to a more inspection-friendly aspect ratio in the tour.
+
+---
+
 ## 2026-04-20 (evening) — Defence-in-depth pass: test the things UI tests can't see, kill the silent bugs
 
 Second pass on the same day, extreme-QA mindset. Everything passes at the view level, so now we hunt for issues that XCUITest can't catch on its own.

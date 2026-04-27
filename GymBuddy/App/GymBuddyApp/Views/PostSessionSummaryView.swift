@@ -75,6 +75,7 @@ struct PostSessionSummaryView: View {
                 .padding(.bottom, DS.Space.xl)
                 .accessibilityIdentifier("post_session_done")
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task { await loadSummary() }
     }
 

@@ -48,6 +48,7 @@ struct SettingsView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .task { await load() }
         .onChange(of: tone) { _, newTone in
             // Skip the initial synchronization from load() — otherwise load itself

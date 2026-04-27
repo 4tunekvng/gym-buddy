@@ -47,6 +47,7 @@ struct HistoryView: View {
                 .accessibilityIdentifier("history_list")
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .task { await load() }
     }
 

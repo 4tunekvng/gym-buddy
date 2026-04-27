@@ -42,6 +42,17 @@ final class LiveSessionViewModel: ObservableObject {
     @Published var isPartialRep: Bool = false
     @Published var isSetupComplete: Bool = false
     @Published var lastEncouragement: String? = nil
+    /// What the coach would have said audibly on the most recent intent. The
+    /// MVP voice player is a mock (real ElevenLabs cache lands in M3), so the
+    /// simulator path renders this on-screen as a "speech bubble" — that way
+    /// the user can SEE the rep counts and encouragements that would otherwise
+    /// be silent. On a real device with audio wired this just mirrors what's
+    /// spoken aloud.
+    @Published var lastSpokenPhrase: String? = nil
+    /// True when we're consuming the synthetic demo fixture (no real camera).
+    /// The Live HUD shows a small banner so the user understands what they're
+    /// watching is a scripted preview.
+    @Published var isRunningDemoFixture: Bool = false
     // MVP: all four framing checks start green so the user can tap "Start set".
     // The real M2 work is pose-driven — each check will go red until the user is
     // actually framed correctly. For now we present them as already-passing so
@@ -154,6 +165,12 @@ final class LiveSessionViewModel: ObservableObject {
         )
 
         let primary = composition.poseDetectorFactory()
+        // Composition routes to a FixturePoseDetector on the iOS Simulator
+        // (no camera). Mark demo mode upfront so the UI shows a banner even
+        // when we don't fall through the catch path below.
+        if primary is FixturePoseDetector {
+            isRunningDemoFixture = true
+        }
         do {
             try await primary.start()
             self.detector = primary
@@ -164,13 +181,19 @@ final class LiveSessionViewModel: ObservableObject {
             // session still plays out. The user can retry on a real device.
             errorMessage = Self.fallbackErrorMessage(for: error)
 
+            // Realtime playback (1/30s per frame). This used to run at 3× speed
+            // for a snappy XCUITest demo, but a real user staring at the
+            // Simulator wants to SEE the rep counter tick up and the
+            // encouragements appear. 30 fps matches what the on-device camera
+            // would feed.
             let fallback = FixturePoseDetector(
                 samples: Self.demoFixture(for: exerciseId),
-                frameInterval: 1.0 / 90.0   // 3× realtime for a snappy demo
+                frameInterval: 1.0 / 30.0
             )
             do {
                 try await fallback.start()
                 self.detector = fallback
+                isRunningDemoFixture = true
                 consume(stream: fallback.bodyStateStream())
             } catch {
                 errorMessage = "Session failed to start: \(error.localizedDescription)"
@@ -209,12 +232,19 @@ final class LiveSessionViewModel: ObservableObject {
                 repCount = n
                 isPartialRep = false
                 cueText = nil   // clear last rep's cue
+                lastSpokenPhrase = "\(n)"
             }
             _ = try? await mapper?.route(intent)
             await logTelemetry(.voicePlayed(tier: 1, phraseId: "rep.\(n)", variantIndex: 0, latency_ms: 0))
 
         case .formCue(let cue):
-            await MainActor.run { cueText = Self.cueDisplayText(for: cue) }
+            let text = Self.cueDisplayText(for: cue)
+            await MainActor.run {
+                cueText = text
+                // Form cues are surfaced on-screen visually, not voiced in MVP
+                // (PRD §5.1: at most one audio phrase per rep — already used by
+                // the rep count). So we don't update lastSpokenPhrase here.
+            }
             _ = try? await mapper?.route(intent)
             await logTelemetry(.cueFired(
                 exerciseId: cue.exerciseId.rawValue,
@@ -224,7 +254,11 @@ final class LiveSessionViewModel: ObservableObject {
             ))
 
         case .encouragement(let kind, _, _):
-            await MainActor.run { lastEncouragement = Self.encouragementDisplayText(for: kind) }
+            let text = Self.encouragementDisplayText(for: kind)
+            await MainActor.run {
+                lastEncouragement = text
+                lastSpokenPhrase = text
+            }
             _ = try? await mapper?.route(intent)
 
         case .painStop(let trigger):

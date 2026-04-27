@@ -35,6 +35,11 @@ struct TodayView: View {
                 .padding(DS.Space.l)
             }
         }
+        // Pin to the safe-area top edge. Without this the parent ZStack in
+        // RootView centers the natural size of the VStack — which produces
+        // a giant black band above the toolbar because the VStack only sizes
+        // to its content, not the screen.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .task { await load() }
     }
 
