@@ -78,7 +78,7 @@ If you can hear the count and see the bubble matching, the audio + rep loop are 
 
 ### Limitations of the Simulator
 
-- **No camera.** The app falls back to a synthetic pose stream (a built-in 10-rep demo) — that's why the rep counter still ticks up. On a real device with the camera, this is what would be driven by your actual movement.
+- **No camera by default.** The app falls back to a synthetic pose stream (a built-in 10-rep demo) — that's why the rep counter still ticks up. On a real device with the camera, this is what would be driven by your actual movement. *Tip:* you can route your Mac's webcam into the Simulator via **Simulator → Device → Camera → Mac Camera** and point it at yourself — the synthetic-pose fallback stays on (real Vision integration is M2 work), but you'll see your own face come through the camera preview.
 - **No HealthKit data.** The mock health reader is wired up.
 - **System TTS only — not the production voice.** The Simulator (and on-device until M3) speaks with `AVSpeechSynthesizer`. The premium ElevenLabs phrase cache that ships in M3 is what real users will hear; this is a strictly better fallback than silence.
 
