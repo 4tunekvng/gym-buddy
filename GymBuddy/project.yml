@@ -18,6 +18,22 @@ targets:
           - "Assets.xcassets"
     info:
       path: App/GymBuddyApp/Info.plist
+      properties:
+        NSCameraUsageDescription: "Gym Buddy uses the camera to count reps, watch form, and show live setup feedback during coached sets. Frames stay on this device — they're never uploaded."
+        NSMicrophoneUsageDescription: "Gym Buddy uses your microphone for between-set conversation and to listen for pain signals during a set."
+        NSSpeechRecognitionUsageDescription: "Gym Buddy transcribes your between-set questions on-device when supported."
+        NSHealthShareUsageDescription: "Gym Buddy reads HRV and sleep from Health to suggest today's load — read-only, never written back."
+        ANTHROPIC_API_KEY: ""
+        GYMBUDDY_LLM_MODE: auto
+        GYMBUDDY_POSE_MODE: auto
+        GYMBUDDY_VOICE_MODE: system
+        GYMBUDDY_SCRIPTED_DEMO_PLAYBACK_RATE: "1.0"
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIRequiredDeviceCapabilities:
+          - arm64
+        UILaunchScreen:
+          UIColorName: ""
     dependencies:
       - package: GymBuddy
         product: CoachingEngine

@@ -14,6 +14,16 @@ final class LiveSessionHappyPathUITest: XCTestCase {
         let app = XCUIApplication()
         XCTAssertTrue(UITestSupport.launchAndReachTodayScreen(app, name: "Fortune"))
 
+        // PRD §6.5 — the Today screen opens with a personal greeting that
+        // includes the user's name. A generic "friend" fallback would mean
+        // the profile didn't actually persist, which is a real regression.
+        let greeting = app.staticTexts["today_greeting"]
+        XCTAssertTrue(greeting.waitForExistence(timeout: 5))
+        XCTAssertFalse(
+            app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Good to see you, friend'")).firstMatch.exists,
+            "Today greeting should use the onboarded name (Fortune), not the 'friend' fallback"
+        )
+
         let pushUpStart = app.buttons["today_start_push_up"]
         XCTAssertTrue(pushUpStart.waitForExistence(timeout: 5))
         pushUpStart.tap()
@@ -30,6 +40,21 @@ final class LiveSessionHappyPathUITest: XCTestCase {
         XCTAssertTrue(app.otherElements["screen_post_session"].waitForExistence(timeout: 25))
         XCTAssertTrue(app.staticTexts["post_session_summary_text"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["post_session_summary_source"].waitForExistence(timeout: 5))
+
+        // PRD §10.3 / §6.3: post-set summary must reference specific numeric
+        // facts from the set ("X reps of Push-up. ..."), never generic praise.
+        // We assert the summary text contains a digit so the user always sees
+        // a concrete fact about what just happened.
+        let summary = app.staticTexts["post_session_summary_text"]
+        let summaryText = summary.label
+        XCTAssertTrue(
+            summaryText.range(of: #"\d"#, options: .regularExpression) != nil,
+            "Post-set summary must contain a numeric fact (rep count). Got: '\(summaryText)'"
+        )
+        XCTAssertFalse(
+            summaryText.lowercased().contains("good job"),
+            "Post-set summary must not be generic praise. Got: '\(summaryText)'"
+        )
 
         app.buttons["post_session_done"].tap()
         XCTAssertTrue(app.otherElements["screen_today"].waitForExistence(timeout: 5))

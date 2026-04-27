@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>ANTHROPIC_API_KEY</key>
+	<string></string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleExecutable</key>
@@ -18,8 +20,6 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
-	<key>ANTHROPIC_API_KEY</key>
-	<string></string>
 	<key>GYMBUDDY_LLM_MODE</key>
 	<string>auto</string>
 	<key>GYMBUDDY_POSE_MODE</key>
@@ -29,6 +29,25 @@
 	<key>GYMBUDDY_VOICE_MODE</key>
 	<string>system</string>
 	<key>NSCameraUsageDescription</key>
-	<string>GymBuddy uses the camera to count reps, watch form, and show live setup feedback during coached sets.</string>
+	<string>Gym Buddy uses the camera to count reps, watch form, and show live setup feedback during coached sets. Frames stay on this device — they're never uploaded.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Gym Buddy reads HRV and sleep from Health to suggest today's load — read-only, never written back.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Gym Buddy uses your microphone for between-set conversation and to listen for pain signals during a set.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Gym Buddy transcribes your between-set questions on-device when supported.</string>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string></string>
+	</dict>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>arm64</string>
+	</array>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
 </dict>
 </plist>

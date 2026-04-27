@@ -65,15 +65,23 @@ public final class SpeechSynthesizerVoicePlayer: NSObject, VoicePlaying {
 
     // MARK: - Helpers
 
-    /// Activate `.playback` so the audio is audible even on the iOS Simulator
-    /// (which routes ambient mode to a muted output by default in some
-    /// configurations). One-shot — re-activation is a no-op.
+    /// Activate the audio session per PRD §7.8: category `.playAndRecord` with
+    /// `.mixWithOthers + .duckOthers`. PlayAndRecord (not the simpler
+    /// `.playback`) is required so that STT for between-set Q&A can later
+    /// share the same session without a category-flip mid-set, which would
+    /// glitch playback on real devices. `.defaultToSpeaker` keeps the audio
+    /// routing predictable on devices without paired Bluetooth audio.
+    /// One-shot — re-activation is a no-op.
     private func ensureAudioSession() async {
         if sessionConfigured { return }
         sessionConfigured = true
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .voicePrompt, options: [.duckOthers])
+            try session.setCategory(
+                .playAndRecord,
+                mode: .voiceChat,
+                options: [.mixWithOthers, .duckOthers, .defaultToSpeaker, .allowBluetoothA2DP, .allowBluetoothHFP]
+            )
             try session.setActive(true, options: [])
         } catch {
             // Best-effort. If we can't activate the session, the synthesizer

@@ -12,6 +12,29 @@ You only need **one** of these to get going. Most people start with A and move t
 
 ---
 
+## Turning on the AI for any of these (live Claude vs deterministic fallback)
+
+Without an API key set, the post-set summary uses a **deterministic grounded fallback** that always names the rep count and grind point but isn't conversational. To get the actual Claude experience:
+
+```bash
+cp .env.example .env
+# open .env, paste your key into ANTHROPIC_API_KEY=
+./scripts/run-simulator.sh --reset
+```
+
+The script sources `.env`, forwards the key into the launched app via `xcrun simctl launch --setenv`, and prints which mode you're in:
+
+```
+==> Forwarding env: ANTHROPIC_API_KEY
+==> AI mode: LIVE Anthropic (key detected — post-set summaries will hit Claude)
+```
+
+`.env` is gitignored — you can't accidentally commit your key. If you ever want to force the deterministic path even with a key set, add `GYMBUDDY_LLM_MODE=mock` to `.env`.
+
+The same `.env` is read by **Option B** (real iPhone) when you launch through Xcode — set the env vars in **Product → Scheme → Edit Scheme → Run → Arguments → Environment Variables**, or just bake them into a *local-only* Info.plist override (see "Sharing with friends" below).
+
+---
+
 ## Option A — Run on the iOS Simulator (easiest, 1 minute)
 
 This is what you've already seen working in our session. The simulator is an iPhone running on your Mac.
@@ -141,6 +164,96 @@ In Xcode:
 - **The actual feel of the app at retina speed.**
 
 After 7 days the app will refuse to launch on the phone. Just rerun **Step 4** above to redeploy.
+
+---
+
+## Sharing the FULL experience (with AI) with friends — three options ranked
+
+The PRD's quality bar is "a dozen friends train with it for four weeks." For that you need them to feel the live Claude responses, not the deterministic fallback. There are three patterns; pick based on your trust model and budget.
+
+### Pattern 1 (recommended for now) — TestFlight build with the key bundled, gitignored
+
+This is the lowest-friction way to give friends the real experience. You ship them a real signed iOS build that *contains* the key, but the key never enters git history.
+
+1. Create `GymBuddy/App/GymBuddyApp/Info.local.plist` (gitignored — `.gitignore` already excludes `apiKey*.plist`; add `Info.local.plist` to be explicit) with just one key:
+   ```xml
+   <plist version="1.0"><dict>
+     <key>ANTHROPIC_API_KEY</key>
+     <string>sk-ant-...</string>
+   </dict></plist>
+   ```
+2. Either: (a) merge it into the main Info.plist at archive time using a build phase, or (b) just paste the key into the generated `Info.plist` right before you Archive in Xcode and remove it after upload. Option (b) is fine if you only Archive a few times.
+3. Archive (**Product → Archive**) → Distribute → TestFlight.
+4. Friends install the **TestFlight** app from the App Store, tap your invite link, get the build.
+
+**Trust model:** TestFlight binaries are signed and sandboxed; extracting an embedded string requires a jailbroken device or the binary on a Mac + class-dump. Your friends won't bother. Random people on the internet *could* if you make the build truly public — see Pattern 3 if that worries you.
+
+**Cost:** $99/year for the Apple Developer Program. Anthropic costs scale with your friends' usage (typical: a 4-week Gym Buddy beta with 10 friends and ~3 sessions/week ≈ a few dollars of Claude usage; the LLM only fires for post-set summaries + between-set Q&A, not the rep-counting hot loop).
+
+### Pattern 2 — Each friend brings their own key (zero risk to you)
+
+Add a "Bring your own key" Settings field. Friends paste their Anthropic key into the app on first run; the app stores it in the iOS Keychain locally. Your repo and your TestFlight build ship with no key.
+
+**When this is right:** if your friends are technical enough that "go grab an Anthropic key" is acceptable. Probably the case for the *primary persona* in PRD §4 (intermediate lifter, tech-savvy) but maybe not the *secondary persona* (non-technical friend who just wants to feel supported).
+
+This isn't built today — it's a small Settings + Keychain wrapper. Yell if you want it; it's ~50 lines.
+
+### Pattern 3 — Backend proxy (the only safe pattern for a fully public repo + binary)
+
+If the GitHub repo is public *and* you also want random forkers to get AI without their own key, the only durable answer is a tiny backend that holds the key.
+
+**Architecture:**
+
+```
+[ iOS app ] ──HTTPS──► [ Cloudflare Worker / Vercel function ] ──HTTPS──► [ Anthropic API ]
+                            │
+                            └─ holds your real key (env var)
+                            └─ rate-limits per device / per IP
+                            └─ optionally checks an App Attest token to confirm "this is the real Gym Buddy app"
+                            └─ optionally restricts which prompts/models are allowed
+```
+
+The app's `LLMClient` already abstracts the provider behind a protocol — pointing it at `https://gym-buddy-proxy.example.com/v1/messages` instead of `https://api.anthropic.com/v1/messages` is a one-line change in `AnthropicClient.swift`'s base URL.
+
+**Cloudflare Worker sketch (≈30 lines):**
+
+```js
+// wrangler.toml: route = "gym-buddy-proxy.your-domain.com/*"
+// secret: ANTHROPIC_API_KEY (set with `wrangler secret put`)
+export default {
+  async fetch(req, env) {
+    if (req.method !== "POST") return new Response("nope", { status: 405 });
+
+    // Per-IP rate limit using Cloudflare's built-in rate limiting binding
+    const ip = req.headers.get("CF-Connecting-IP") ?? "anon";
+    const { success } = await env.RATE.limit({ key: ip });
+    if (!success) return new Response("rate limited", { status: 429 });
+
+    // Forward to Anthropic with your key. Strip any Authorization header
+    // the client may have set so we can't be tricked into using their key.
+    const body = await req.text();
+    const upstream = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": env.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      body
+    });
+    return new Response(upstream.body, {
+      status: upstream.status,
+      headers: { "content-type": upstream.headers.get("content-type") ?? "application/json" }
+    });
+  }
+}
+```
+
+Deploy with `wrangler deploy`. The free tier is enough for a few hundred friends. Add stricter checks (App Attest, per-device tokens) if you ever go fully public.
+
+**Trust model & cost:** the proxy URL is in the binary. Anyone *could* call it directly with curl. Rate limits cap the worst case at "expensive but bounded." If someone abuses it, rotate the upstream key and redeploy — the URL stays the same. Your repo and binary remain key-free forever.
+
+**This is the right pattern long-term** if you ever want the GitHub repo to be public AND have AI work for casual users. It's overkill for Pattern 1's "10 trusted friends" use case. Build it when (a) you go public, or (b) your TestFlight tester count goes past ~50.
 
 ---
 

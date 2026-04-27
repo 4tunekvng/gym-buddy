@@ -80,7 +80,16 @@ public final class VisionPoseDetector: NSObject, PoseDetecting, CameraPreviewPro
 
         // Best-effort 30 fps.
         if let connection = videoOutput.connection(with: .video) {
-            connection.videoOrientation = .portrait
+            // iOS 17 deprecated `videoOrientation` in favour of the rotation-
+            // angle API. 90° clockwise = portrait. Some older sims still want
+            // the legacy property, so we set it under a runtime guard.
+            if #available(iOS 17.0, *) {
+                if connection.isVideoRotationAngleSupported(90) {
+                    connection.videoRotationAngle = 90
+                }
+            } else {
+                connection.videoOrientation = .portrait
+            }
             if connection.isCameraIntrinsicMatrixDeliverySupported {
                 connection.isCameraIntrinsicMatrixDeliveryEnabled = false
             }

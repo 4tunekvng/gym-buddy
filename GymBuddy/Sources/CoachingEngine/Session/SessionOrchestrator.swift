@@ -22,6 +22,18 @@ public final class SessionOrchestrator {
     private var painStopped = false
     private var endReason: SetEndEvent.EndReason?
 
+    /// PRD §2 / §10.3 — the hero moment requires "one more — push" to land on
+    /// the *next concentric* after fatigue is detected, not the moment fatigue
+    /// is detected. The detector can only know rep N's concentric was slow
+    /// AFTER rep N completes (top of rep). Speaking "one more" right then would
+    /// land at the top of rep N — half a rep early. Instead we stage the
+    /// trigger and emit at the next bottom→ascending phase transition (= start
+    /// of rep N+1's concentric, which is when the user is grinding the rep).
+    /// Anything still pending at set end gets flushed so we never silently drop
+    /// an encouragement.
+    private var pendingFatigue: TempoTracker.FatigueTrigger?
+    private var previousPhase: RepPhase = .idle
+
     public init(config: SessionConfig, context: SessionContext) {
         self.config = config
         self.context = context
@@ -45,17 +57,18 @@ public final class SessionOrchestrator {
 
         var intents: [CoachingIntent] = []
 
-        // Step the rep detector; if a rep was completed, process tempo and emit intents.
+        // Step the rep detector; if a rep was completed, process tempo and stage
+        // any fatigue trigger for emission at the next concentric start.
         if let rep = repDetector.observe(sample) {
             repEvents.append(rep)
             setEndDetector.noteRepCompleted()
             let repCompletedOutput = intentEmitter.onRepCompleted(rep)
             intents.append(contentsOf: repCompletedOutput.intents)
             if let trigger = tempoTracker.ingest(rep) {
-                let fatigueOutput = intentEmitter.onFatigueTriggered(trigger, at: rep.endedAt)
-                intents.append(contentsOf: fatigueOutput.intents)
+                pendingFatigue = trigger
             }
-            // After emitting this rep, also check the reached target.
+            // Target-reached encouragement still fires at top-of-rep — that's a
+            // celebration of the *just-finished* rep, not a forward-looking push.
             if let target = config.targetReps, rep.repNumber >= target {
                 intents.append(.encouragement(
                     kind: .lastOne, timing: .topOfRep, timestamp: rep.endedAt
@@ -63,10 +76,30 @@ public final class SessionOrchestrator {
             }
         }
 
+        // Detect bottom→ascending transition AFTER the detector has stepped.
+        // That is the user's concentric-start moment for the in-progress rep.
+        let newPhase = repDetector.phase
+        if previousPhase == .bottom, newPhase == .ascending,
+           let trigger = pendingFatigue {
+            pendingFatigue = nil
+            let fatigueOutput = intentEmitter.onFatigueTriggered(trigger, at: sample.timestamp)
+            intents.append(contentsOf: fatigueOutput.intents)
+        }
+        previousPhase = newPhase
+
         // Check set-end conditions on every sample.
         if !setEnded, let reason = setEndDetector.observe(sample) {
             setEnded = true
             endReason = reason
+            // Flush any fatigue trigger that never got a follow-up concentric.
+            // PRD §2 promises the user "the one you weren't going to do alone"
+            // — we never silently swallow that intent.
+            if let trigger = pendingFatigue {
+                pendingFatigue = nil
+                intents.append(contentsOf: intentEmitter.onFatigueTriggered(
+                    trigger, at: sample.timestamp
+                ).intents)
+            }
             let event = SetEndEvent(
                 exerciseId: config.exerciseId,
                 setNumber: config.setNumber,
@@ -87,6 +120,13 @@ public final class SessionOrchestrator {
         setEnded = true
         endReason = reason
         let now = repEvents.last?.endedAt ?? 0
+        var intents: [CoachingIntent] = []
+        if let trigger = pendingFatigue {
+            pendingFatigue = nil
+            intents.append(contentsOf: intentEmitter.onFatigueTriggered(
+                trigger, at: now
+            ).intents)
+        }
         let event = SetEndEvent(
             exerciseId: config.exerciseId,
             setNumber: config.setNumber,
@@ -95,7 +135,8 @@ public final class SessionOrchestrator {
             totalReps: repEvents.count,
             partialReps: repEvents.filter { $0.isPartial }.count
         )
-        return intentEmitter.onSetEnded(event).intents
+        intents.append(contentsOf: intentEmitter.onSetEnded(event).intents)
+        return intents
     }
 
     /// Signals that pain was detected (via STT or user tap). Stops everything.
