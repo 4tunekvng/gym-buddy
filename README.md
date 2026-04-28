@@ -30,6 +30,7 @@ Pick the one that matches who you are right now:
 - **[GymBuddy/](GymBuddy/)** — the Swift workspace. `GymBuddy/README.md` has clone-and-run instructions.
 - **[GymBuddy/Sources/CoachingEngine/](GymBuddy/Sources/CoachingEngine/)** — the sacrosanct domain layer.
 - **[GymBuddy/Tests/CoachingEngineTests/HeroMoment/](GymBuddy/Tests/CoachingEngineTests/HeroMoment/)** — the north-star demo test.
+- **[HOW_TO_TEST.md](HOW_TO_TEST.md)** — exact commands to verify the build (`swift build`, `swift test` — 161 unit tests pass in <1s on M-series).
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** — the rules of engagement.
 
 ---
