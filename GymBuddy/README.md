@@ -18,7 +18,7 @@ This directory (`GymBuddy/`) is the Swift Package workspace + the iOS app target
 3. **Run the full test suite** (pure-Swift packages, no Xcode project needed):
 
     ```bash
-    swift test                        # 136 tests, ~0.1s runtime
+    swift test                        # 161 tests, ~0.1s runtime
     swift test --filter NorthStarDemoTest
     swift run coaching-cli            # prints the full hero moment
     ```
