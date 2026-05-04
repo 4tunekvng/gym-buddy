@@ -23,6 +23,28 @@ This directory (`GymBuddy/`) is the Swift Package workspace + the iOS app target
     swift run coaching-cli            # prints the full hero moment
     ```
 
+    `coaching-cli` output (abbreviated — this is the PRD §2 hero demo):
+
+    ```
+    No fixture argument — running built-in north-star push-up demo (13 reps, fatigue ramp).
+    [2.73] Rep: 1
+    [4.73] Rep: 2
+    ...
+    [21.67] Rep: 10
+    [23.20] encouragement: oneMore
+    [23.20] encouragement: pushThrough
+    [24.30] Rep: 11
+    [25.90] encouragement: lastOne
+    [25.90] encouragement: drive
+    [27.10] Rep: 12
+    [30.07] Rep: 13
+    [set-ended] reps=13 reason=autoDetectedStill
+    — Set complete — Reps: 13 (full: 13, partial: 0). Fatigue began at rep: 10.
+    ```
+
+    The encouragements firing on reps 10 and 11 are the deterministic ground
+    truth that PRD §2 specifies and `NorthStarDemoTest` enforces.
+
    The CLI prints 13 rep events with the "one more — push" encouragement firing on rep 10 and "last one — drive" firing on rep 11, exactly as PRD §2 specifies.
 
 4. **Regenerate the iOS app project** from `project.yml`:
