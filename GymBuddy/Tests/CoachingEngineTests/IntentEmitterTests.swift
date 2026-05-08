@@ -56,6 +56,18 @@ final class IntentEmitterTests: XCTestCase {
         XCTAssertEqual(kinds, [.lastOne, .drive])
     }
 
+    func testEccentricFatigueTriggerEmitsSteadyDuringEccentric() {
+        let emitter = CoachingIntentEmitter(exerciseId: .pushUp)
+        let out = emitter.onFatigueTriggered(.eccentricFatigue(ratio: 1.45, atRep: 6), at: 4.0)
+        XCTAssertEqual(out.intents.count, 1)
+        if case .encouragement(let kind, let timing, _) = out.intents[0] {
+            XCTAssertEqual(kind, .steady)
+            XCTAssertEqual(timing, .duringEccentric)
+        } else {
+            XCTFail("Expected encouragement intent, got \(out.intents[0])")
+        }
+    }
+
     func testPainTriggerEmitsPainStop() {
         let emitter = CoachingIntentEmitter(exerciseId: .pushUp)
         let out = emitter.onPainDetected(trigger: "sharp pain")

@@ -60,6 +60,12 @@ public final class CoachingIntentEmitter {
                 .encouragement(kind: .lastOne, timing: .bottomOfRep, timestamp: timestamp),
                 .encouragement(kind: .drive, timing: .duringConcentric, timestamp: timestamp)
             ])
+        case .eccentricFatigue:
+            // Early-warning: eccentric phase slowed before concentric — coach
+            // cues a controlled lowering to preserve power for the next push.
+            return Output(intents: [
+                .encouragement(kind: .steady, timing: .duringEccentric, timestamp: timestamp)
+            ])
         }
     }
 
