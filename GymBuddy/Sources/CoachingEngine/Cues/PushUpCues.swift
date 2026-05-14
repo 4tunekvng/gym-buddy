@@ -83,8 +83,9 @@ public enum PushUpCues {
         public let severity: CueSeverity = .quality
         public func evaluate(sample: PoseSample, phase: RepPhase) -> String? {
             guard phase == .bottom || phase == .descending else { return nil }
-            // Compute shoulder-elbow-torso angle for both arms; fire if smaller
-            // than ~80° on either side (elbow points out from torso).
+            // Compute shoulder-elbow-torso angle for both arms; fire if larger
+            // than ~80° on either side (elbow points out from torso, increasing
+            // the angle at the shoulder vertex).
             let threshold = Angle(degrees: 80).radians
             let leftAngle = PoseGeometry.angle(
                 at: sample[.leftShoulder] ?? missing,
