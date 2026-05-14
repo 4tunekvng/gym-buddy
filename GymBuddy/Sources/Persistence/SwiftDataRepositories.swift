@@ -112,8 +112,16 @@ public final class SwiftDataSessionRepository: SessionRepository {
             sortBy: [SortDescriptor(\.startedAt, order: .reverse)]
         )
         descriptor.fetchLimit = limit
-        return try context.fetch(descriptor).compactMap {
-            try? decoder.decode(WorkoutSessionRecord.self, from: $0.payload)
+        return try context.fetch(descriptor).compactMap { row -> WorkoutSessionRecord? in
+            do {
+                return try decoder.decode(WorkoutSessionRecord.self, from: row.payload)
+            } catch {
+                // Log and skip records that fail to decode (e.g. from a previous
+                // schema version) rather than propagating an error that would
+                // silently surface as an empty list to callers.
+                print("[SwiftDataSessionRepository] Failed to decode session \(row.id): \(error)")
+                return nil
+            }
         }
     }
 
