@@ -134,6 +134,9 @@ public extension WorkoutSessionRecord {
     /// Build a record from one or more SessionObservations produced by the engine.
     static func build(from observations: [SessionObservation], painFlag: Bool, summary: String?) -> WorkoutSessionRecord {
         let now = Date()
+        let allReps = observations.flatMap(\.repEvents)
+        let startedAt = allReps.first.map { Date(timeIntervalSinceReferenceDate: $0.startedAt) } ?? now
+        let endedAt = allReps.last.map { Date(timeIntervalSinceReferenceDate: $0.endedAt) } ?? now
         let performed = Dictionary(grouping: observations, by: \.exerciseId)
             .map { (exerciseId, obs) in
                 PerformedExerciseRecord(
@@ -150,8 +153,8 @@ public extension WorkoutSessionRecord {
                 )
             }
         return WorkoutSessionRecord(
-            startedAt: now,
-            endedAt: now,
+            startedAt: startedAt,
+            endedAt: endedAt,
             performedExercises: performed,
             painFlag: painFlag,
             summaryText: summary
