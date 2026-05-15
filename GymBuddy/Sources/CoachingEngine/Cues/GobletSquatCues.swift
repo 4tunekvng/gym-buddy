@@ -49,11 +49,13 @@ public enum GobletSquatCues {
             // Check whether knee x is inside (towards center) the hip-ankle line.
             let t = (knee.y - hip.y) / max(0.001, ankle.y - hip.y)
             let lineX = hip.x + t * (ankle.x - hip.x)
-            let valgus = lineX - knee.x  // in image coords, right side means "positive x"
-            // For left side, left of body is smaller x in camera-facing view.
-            // Valgus = knee drifts toward right (centerline), so knee.x > lineX.
-            if -valgus > 0.05 {
-                return "valgus_left:\(String(format: "%.3f", -valgus))"
+            // valgus > 0 when knee.x < lineX: knee has moved toward body center
+            // (inward = valgus). In a camera-facing view the user's left leg is
+            // on the image right (larger x). Knee caving in means knee.x decreases
+            // relative to the hip–ankle line, so lineX − knee.x is positive.
+            let valgus = lineX - knee.x
+            if valgus > 0.05 {
+                return "valgus_left:\(String(format: "%.3f", valgus))"
             }
             return nil
         }
@@ -70,9 +72,13 @@ public enum GobletSquatCues {
                   let ankle = sample[.rightAnkle], ankle.isReliable else { return nil }
             let t = (knee.y - hip.y) / max(0.001, ankle.y - hip.y)
             let lineX = hip.x + t * (ankle.x - hip.x)
+            // valgus > 0 when knee.x > lineX: knee has moved toward body center
+            // (inward = valgus). In a camera-facing view the user's right leg is
+            // on the image left (smaller x). Knee caving in means knee.x increases
+            // relative to the hip–ankle line, so knee.x − lineX is positive.
             let valgus = knee.x - lineX
-            if -valgus > 0.05 {
-                return "valgus_right:\(String(format: "%.3f", -valgus))"
+            if valgus > 0.05 {
+                return "valgus_right:\(String(format: "%.3f", valgus))"
             }
             return nil
         }
