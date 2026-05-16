@@ -30,7 +30,7 @@ public struct ReadinessScaler: Sendable {
         var deload = false
         var reasons: [String] = []
 
-        if let hrv = check.hrvDeltaPct, hrv > 10 {
+        if let hrv = check.hrvDeltaPct, hrv >= 10 {
             volumeDelta -= 1
             reasons.append("HRV is \(Int(hrv))% below baseline — cutting one set")
         }
