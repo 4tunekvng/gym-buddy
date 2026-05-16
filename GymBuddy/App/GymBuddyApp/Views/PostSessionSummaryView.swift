@@ -113,7 +113,8 @@ struct PostSessionSummaryView: View {
         // 2. Ask the LLM for the warm paragraph. The SafeLLMClient will
         // substitute with a pre-recorded safe response if anything unsafe
         // slips through.
-        let rendered = PromptRegistry.renderPostSetSummary(observation: obs, tone: .standard)
+        let tone = (try? await composition.userProfileRepo.load())?.tone ?? .standard
+        let rendered = PromptRegistry.renderPostSetSummary(observation: obs, tone: tone)
         let request = LLMRequest(
             promptId: rendered.id,
             promptVersion: rendered.version,
@@ -122,7 +123,6 @@ struct PostSessionSummaryView: View {
             temperature: 0.6,
             maxTokens: 200
         )
-        let tone = (try? await composition.userProfileRepo.load())?.tone ?? .standard
         do {
             let response = try await composition.llmClient.complete(request: request)
             if response.text.hasPrefix("safe:") {

@@ -247,16 +247,16 @@ struct OnboardingFlow: View {
     }
 
     private func seedMemoryNotes(from profile: UserProfile) -> [CoachMemoryNote] {
-        var notes: [CoachMemoryNote] = [
-            CoachMemoryNote(
-                content: "Goal is \(profile.goal.rawValue).",
-                tags: [goalTag(for: profile.goal).rawValue]
-            ),
-            CoachMemoryNote(
-                content: "Prefers the \(profile.tone.displayName.lowercased()) coaching tone.",
-                tags: [MemoryTag.preference.rawValue]
-            )
-        ]
+        var notes: [CoachMemoryNote] = []
+        let goalMemoryTag = goalTag(for: profile.goal)
+        notes.append(CoachMemoryNote(
+            content: "Goal is \(profile.goal.rawValue).",
+            tags: goalMemoryTag.map { [$0.rawValue] } ?? []
+        ))
+        notes.append(CoachMemoryNote(
+            content: "Prefers the \(profile.tone.displayName.lowercased()) coaching tone.",
+            tags: [MemoryTag.preference.rawValue]
+        ))
 
         for bodyPart in profile.injuryBodyParts {
             notes.append(CoachMemoryNote(
@@ -267,7 +267,7 @@ struct OnboardingFlow: View {
         return notes
     }
 
-    private func goalTag(for goal: PlanGenerator.Inputs.Goal) -> MemoryTag {
+    private func goalTag(for goal: PlanGenerator.Inputs.Goal) -> MemoryTag? {
         switch goal {
         case .strength:
             return .goalStrength
@@ -276,7 +276,7 @@ struct OnboardingFlow: View {
         case .recomp:
             return .goalRecomp
         case .maintenance:
-            return .goalHypertrophy
+            return nil
         }
     }
 

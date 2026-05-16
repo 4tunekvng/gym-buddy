@@ -140,9 +140,9 @@ public final class MockLLMClient: LLMClientProtocol, @unchecked Sendable {
 
     private func humanExerciseName(_ raw: String) -> String {
         switch raw {
-        case "push-up": return "Push-up"
-        case "goblet-squat": return "Goblet Squat"
-        case "dumbbell-row": return "Dumbbell Row"
+        case "push_up": return "Push-up"
+        case "goblet_squat": return "Goblet Squat"
+        case "dumbbell_row": return "Dumbbell Row"
         default:
             return raw.isEmpty ? "the set" : raw
         }
