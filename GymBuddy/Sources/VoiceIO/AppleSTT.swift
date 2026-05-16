@@ -49,7 +49,15 @@ public final class AppleSTT: @unchecked Sendable {
             request.append(buffer)
         }
         engine.prepare()
-        try engine.start()
+        do {
+            try engine.start()
+        } catch {
+            // Remove the tap we just installed so a subsequent call to
+            // startRecognition can install it again cleanly.
+            inputNode.removeTap(onBus: 0)
+            self.request = nil
+            throw error
+        }
 
         task = recognizer.recognitionTask(with: request) { result, error in
             if let result {
