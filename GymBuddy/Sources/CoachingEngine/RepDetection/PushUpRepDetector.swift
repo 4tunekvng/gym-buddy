@@ -98,7 +98,7 @@ public final class PushUpRepDetector: RepDetector, @unchecked Sendable {
             isPartial: isPartial
         )
         // Reset per-rep travel bookkeeping but keep the FSM in .top
-        repStartTimestamp = timestamp
+        repStartTimestamp = nil
         bottomTimestamp = nil
         maxShoulderY = -.infinity
         minShoulderY = .infinity

@@ -80,7 +80,7 @@ public final class GobletSquatRepDetector: RepDetector, @unchecked Sendable {
             rangeOfMotionScore: romScore,
             isPartial: romScore < tuning.partialRomThreshold
         )
-        repStartTimestamp = timestamp
+        repStartTimestamp = nil
         bottomTimestamp = nil
         maxHipY = -.infinity
         minHipY = .infinity

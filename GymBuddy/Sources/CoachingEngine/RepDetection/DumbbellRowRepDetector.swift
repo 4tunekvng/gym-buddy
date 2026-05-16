@@ -139,7 +139,7 @@ public final class DumbbellRowRepDetector: RepDetector, @unchecked Sendable {
             rangeOfMotionScore: romScore,
             isPartial: romScore < tuning.partialRomThreshold
         )
-        repStartTimestamp = timestamp
+        repStartTimestamp = nil
         pullTopTimestamp = nil
         maxWristY = -.infinity
         minWristY = .infinity
