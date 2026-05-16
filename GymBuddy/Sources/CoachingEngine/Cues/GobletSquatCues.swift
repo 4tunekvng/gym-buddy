@@ -30,8 +30,11 @@ public enum GobletSquatCues {
                 sample[.leftKnee] ?? missing,
                 sample[.rightKnee] ?? missing
             ) else { return nil }
-            if knee.y - hip.y > 0.02 {
-                return "shallow:\(String(format: "%.3f", knee.y - hip.y))"
+            // In image-space y increases downward, so hip.y >= knee.y means the
+            // hip is lower in the frame than the knee — that is a deep-enough squat.
+            // Shallow squat: hip is still above the knee line, i.e. hip.y < knee.y.
+            if hip.y - knee.y > 0.02 {
+                return "shallow:\(String(format: "%.3f", hip.y - knee.y))"
             }
             return nil
         }
