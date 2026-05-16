@@ -38,14 +38,19 @@ public final class PushUpRepDetector: RepDetector, @unchecked Sendable {
         lastSampleTimestamp = sample.timestamp
 
         guard let elbowAngle = averageElbowAngle(from: sample) else { return nil }
-        guard let shoulderMid = PoseGeometry.midpoint(
+
+        // Track vertical travel of the shoulders for ROM scoring only when both
+        // shoulders are reliably visible. When one is occluded we still advance the
+        // rep-detection FSM (elbow angle is the primary signal) but skip shoulder
+        // tracking for this frame so a partially-occluded shoulder does not corrupt
+        // the range-of-motion score or cause the rep to be marked partial.
+        if let shoulderMid = PoseGeometry.midpoint(
             sample[.leftShoulder] ?? Keypoint(x: 0, y: 0, confidence: 0),
             sample[.rightShoulder] ?? Keypoint(x: 0, y: 0, confidence: 0)
-        ) else { return nil }
-
-        // Track vertical travel of the shoulders for ROM scoring.
-        maxShoulderY = max(maxShoulderY, shoulderMid.y)
-        minShoulderY = min(minShoulderY, shoulderMid.y)
+        ) {
+            maxShoulderY = max(maxShoulderY, shoulderMid.y)
+            minShoulderY = min(minShoulderY, shoulderMid.y)
+        }
 
         switch phase {
         case .idle:
@@ -107,6 +112,10 @@ public final class PushUpRepDetector: RepDetector, @unchecked Sendable {
     }
 
     private func rangeOfMotionScore() -> Double {
+        // If no reliable shoulder data was collected this rep (both shoulders were
+        // occluded for every frame), we cannot assess ROM and return a neutral score
+        // of 1.0 so the rep is not incorrectly flagged as partial.
+        guard maxShoulderY > minShoulderY else { return 1.0 }
         let travel = maxShoulderY - minShoulderY
         // Push-up shoulder travel is typically 0.06–0.12 in normalized image coords
         // (arm-segment ~0.15 in image, so shoulder y moves across roughly that range).
