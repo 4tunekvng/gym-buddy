@@ -42,7 +42,7 @@ public struct MemoryExtractor: Sendable {
         let trimmed = jsonText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let data = trimmed.data(using: .utf8) else { return [] }
         struct Raw: Decodable { let content: String; let tags: [String] }
-        let rawNotes = (try? JSONDecoder().decode([Raw].self, from: data)) ?? []
+        let rawNotes = try JSONDecoder().decode([Raw].self, from: data)
         return rawNotes.map {
             CoachMemoryNote(content: $0.content, tags: Set($0.tags))
         }

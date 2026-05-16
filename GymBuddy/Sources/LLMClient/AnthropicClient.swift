@@ -77,8 +77,7 @@ public final class AnthropicClient: LLMClientProtocol, @unchecked Sendable {
                     // Real SSE parsing is Chapter 1+ polish; the protocol surface
                     // here is stable regardless.
                     let full = try await self.complete(request: request)
-                    let chunks = full.text.split(separator: ".", omittingEmptySubsequences: true).map { String($0) + "." }
-                    for chunk in chunks { continuation.yield(chunk) }
+                    continuation.yield(full.text)
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
