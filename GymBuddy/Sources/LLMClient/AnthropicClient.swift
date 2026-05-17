@@ -36,7 +36,10 @@ public final class AnthropicClient: LLMClientProtocol, @unchecked Sendable {
     }
 
     public func complete(request: LLMRequest) async throws -> LLMResponse {
-        var urlRequest = URLRequest(url: Self.baseURL)
+        var urlRequest = URLRequest(
+            url: Self.baseURL,
+            timeoutInterval: configuration.requestTimeout
+        )
         urlRequest.httpMethod = "POST"
         urlRequest.addValue(credentials.apiKey, forHTTPHeaderField: "x-api-key")
         urlRequest.addValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
