@@ -51,8 +51,14 @@ public final class AppleHealthReader: HealthReader, @unchecked Sendable {
             let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, error in
                 if let error { cont.resume(throwing: error); return }
                 let categories = (samples ?? []).compactMap { $0 as? HKCategorySample }
-                let asleepValue = HKCategoryValueSleepAnalysis.asleep.rawValue
-                let asleep = categories.filter { $0.value == asleepValue }
+                let asleepValues: Set<Int> = [
+                    HKCategoryValueSleepAnalysis.asleep.rawValue,
+                    HKCategoryValueSleepAnalysis.asleepCore.rawValue,
+                    HKCategoryValueSleepAnalysis.asleepREM.rawValue,
+                    HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
+                    HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue,
+                ]
+                let asleep = categories.filter { asleepValues.contains($0.value) }
                 let totalSeconds = asleep.reduce(0) { $0 + $1.endDate.timeIntervalSince($1.startDate) }
                 cont.resume(returning: totalSeconds > 0 ? totalSeconds / 3600 : nil)
             }

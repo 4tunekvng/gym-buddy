@@ -348,7 +348,11 @@ final class LiveSessionViewModel: ObservableObject {
             painFlag: observation.endEvent.reason == .painPause,
             summary: nil
         )
-        try? await composition.sessionRepo.record(record)
+        do {
+            try await composition.sessionRepo.record(record)
+        } catch {
+            await MainActor.run { errorMessage = "Session save failed: \(error.localizedDescription)" }
+        }
 
         let duration: Double = {
             guard let first = observation.repEvents.first, let last = observation.repEvents.last

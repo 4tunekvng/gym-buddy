@@ -22,6 +22,7 @@ struct OnboardingFlow: View {
     @State private var shoulderInjury: Bool = false
     @State private var backInjury: Bool = false
     @State private var tone: CoachingTone = .standard
+    @State private var saveError: String?
 
     enum Step: CaseIterable {
         case name, goal, experience, equipment, frequency, injuries, tone, review
@@ -46,6 +47,11 @@ struct OnboardingFlow: View {
         .padding(.bottom, DS.Space.m)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(DS.Motion.fastEase, value: step)
+        .alert("Setup Failed", isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
+            Button("OK") { saveError = nil }
+        } message: {
+            Text(saveError ?? "")
+        }
     }
 
     private var header: some View {
@@ -237,12 +243,16 @@ struct OnboardingFlow: View {
             injuryBodyParts: injuries
         ))
         Task {
-            try? await composition.userProfileRepo.save(profile)
-            try? await composition.planRepo.save(plan)
-            for note in seedMemoryNotes(from: profile) {
-                try? await composition.memoryRepo.add(note)
+            do {
+                try await composition.userProfileRepo.save(profile)
+                try await composition.planRepo.save(plan)
+                for note in seedMemoryNotes(from: profile) {
+                    try await composition.memoryRepo.add(note)
+                }
+                await MainActor.run { onFinish() }
+            } catch {
+                await MainActor.run { saveError = error.localizedDescription }
             }
-            await MainActor.run { onFinish() }
         }
     }
 
