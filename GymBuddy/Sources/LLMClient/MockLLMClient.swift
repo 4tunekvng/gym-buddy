@@ -54,7 +54,7 @@ public final class MockLLMClient: LLMClientProtocol, @unchecked Sendable {
 
     public func stream(request: LLMRequest) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
-            Task {
+            let task = Task {
                 do {
                     let resp = try await self.complete(request: request)
                     // Chunk into sentences.
@@ -67,6 +67,7 @@ public final class MockLLMClient: LLMClientProtocol, @unchecked Sendable {
                     continuation.finish(throwing: error)
                 }
             }
+            continuation.onTermination = { _ in task.cancel() }
         }
     }
 

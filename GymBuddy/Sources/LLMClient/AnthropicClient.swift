@@ -80,7 +80,7 @@ public final class AnthropicClient: LLMClientProtocol, @unchecked Sendable {
 
     public func stream(request: LLMRequest) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
-            Task {
+            let task = Task {
                 do {
                     // Minimal MVP implementation delegates to non-streaming complete.
                     // Real SSE parsing is Chapter 1+ polish; the protocol surface
@@ -92,6 +92,7 @@ public final class AnthropicClient: LLMClientProtocol, @unchecked Sendable {
                     continuation.finish(throwing: error)
                 }
             }
+            continuation.onTermination = { _ in task.cancel() }
         }
     }
 }

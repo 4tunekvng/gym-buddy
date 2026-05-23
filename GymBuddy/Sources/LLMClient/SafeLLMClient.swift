@@ -44,7 +44,7 @@ public final class SafeLLMClient: LLMClientProtocol {
 
     public func stream(request: LLMRequest) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
-            Task {
+            let task = Task {
                 do {
                     let response = try await self.complete(request: request)
                     continuation.yield(response.text)
@@ -53,6 +53,7 @@ public final class SafeLLMClient: LLMClientProtocol {
                     continuation.finish(throwing: error)
                 }
             }
+            continuation.onTermination = { _ in task.cancel() }
         }
     }
 }
