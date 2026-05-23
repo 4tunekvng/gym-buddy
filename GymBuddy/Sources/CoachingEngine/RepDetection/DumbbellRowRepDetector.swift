@@ -127,8 +127,16 @@ public final class DumbbellRowRepDetector: RepDetector, @unchecked Sendable {
         let pullTopAt = pullTopTimestamp ?? timestamp
         let concentric = max(0, pullTopAt - started)      // drive up
         let eccentric = max(0, timestamp - pullTopAt)     // lower under control
-        let travel = maxWristY - minWristY
-        let romScore = min(1.0, max(0.0, travel / 0.14))
+        // Guard against no reliable wrist data collected during this rep (wrist was
+        // occluded for every frame). Return a neutral score of 1.0 so the rep is not
+        // incorrectly flagged as partial — mirrors PushUpRepDetector.
+        let romScore: Double
+        if maxWristY > minWristY {
+            let travel = maxWristY - minWristY
+            romScore = min(1.0, max(0.0, travel / 0.14))
+        } else {
+            romScore = 1.0
+        }
         let event = RepEvent(
             exerciseId: exerciseId,
             repNumber: currentRepNumber,

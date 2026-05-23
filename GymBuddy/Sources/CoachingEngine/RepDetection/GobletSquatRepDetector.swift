@@ -68,8 +68,16 @@ public final class GobletSquatRepDetector: RepDetector, @unchecked Sendable {
         let bottomAt = bottomTimestamp ?? timestamp
         let eccentric = max(0, bottomAt - started)
         let concentric = max(0, timestamp - bottomAt)
-        let travel = maxHipY - minHipY
-        let romScore = min(1.0, max(0.0, travel / 0.18))
+        // Guard against no reliable hip data collected during this rep (both hips
+        // were occluded for every frame). In that case return a neutral score of 1.0
+        // so the rep is not incorrectly flagged as partial — mirrors PushUpRepDetector.
+        let romScore: Double
+        if maxHipY > minHipY {
+            let travel = maxHipY - minHipY
+            romScore = min(1.0, max(0.0, travel / 0.18))
+        } else {
+            romScore = 1.0
+        }
         let event = RepEvent(
             exerciseId: exerciseId,
             repNumber: currentRepNumber,
