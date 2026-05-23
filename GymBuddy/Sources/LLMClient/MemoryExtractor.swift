@@ -66,6 +66,7 @@ public struct MemoryExtractor: Sendable {
                 CoachMemoryNote(content: $0.content, tags: Set($0.tags))
             }
         } catch {
+            print("[MemoryExtractor] Failed to decode memory notes: \(error)")
             return []
         }
     }

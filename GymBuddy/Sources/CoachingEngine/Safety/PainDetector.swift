@@ -51,7 +51,7 @@ public struct PainDetector: Sendable {
         }
         // Also catch bare "hurts" at word boundaries.
         let tokens = lower.split(whereSeparator: { !$0.isLetter })
-        if tokens.contains("hurts") || tokens.contains("hurting") {
+        if tokens.contains("hurts") || tokens.contains("hurting") || tokens.contains("hurt") {
             if !lower.contains("muscle") && !lower.contains("legs are burning") && !lower.contains("burn") {
                 return "hurts"
             }
