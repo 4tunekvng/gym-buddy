@@ -108,7 +108,7 @@ public final class SessionOrchestrator {
                 totalReps: repEvents.count,
                 partialReps: repEvents.filter { $0.isPartial }.count
             )
-            intents.append(contentsOf: intentEmitter.onSetEnded(event).intents)
+            intents.append(contentsOf: intentEmitter.onSetEnded(event, restSeconds: config.restSeconds).intents)
         }
 
         return intents
@@ -135,7 +135,7 @@ public final class SessionOrchestrator {
             totalReps: repEvents.count,
             partialReps: repEvents.filter { $0.isPartial }.count
         )
-        intents.append(contentsOf: intentEmitter.onSetEnded(event).intents)
+        intents.append(contentsOf: intentEmitter.onSetEnded(event, restSeconds: config.restSeconds).intents)
         return intents
     }
 

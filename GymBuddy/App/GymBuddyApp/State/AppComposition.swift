@@ -188,6 +188,7 @@ final class AppComposition: ObservableObject {
                 llmMode: .mock,
                 voiceMode: .mock,
                 anthropicAPIKey: nil,
+                anthropicBaseURL: nil,
                 scriptedDemoPlaybackRate: 1.0
             ),
             runtimeStatus: AppRuntimeStatus(

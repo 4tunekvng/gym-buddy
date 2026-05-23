@@ -69,8 +69,8 @@ public final class CoachingIntentEmitter {
         }
     }
 
-    public func onSetEnded(_ event: SetEndEvent) -> Output {
-        Output(intents: [.setEnded(event), .startRest(seconds: 90)])
+    public func onSetEnded(_ event: SetEndEvent, restSeconds: TimeInterval = 90) -> Output {
+        Output(intents: [.setEnded(event), .startRest(seconds: restSeconds)])
     }
 
     public func onPainDetected(trigger: String) -> Output {
