@@ -22,6 +22,7 @@ struct AppRuntimeConfiguration: Equatable {
     let llmMode: LLMMode
     let voiceMode: VoiceMode
     let anthropicAPIKey: String?
+    let anthropicBaseURL: String?
     let scriptedDemoPlaybackRate: Double
 
     static func current(
@@ -45,6 +46,10 @@ struct AppRuntimeConfiguration: Equatable {
                 environment["GYMBUDDY_ANTHROPIC_API_KEY"],
                 environment["ANTHROPIC_API_KEY"],
                 stringValue(infoDictionary["ANTHROPIC_API_KEY"])
+            ),
+            anthropicBaseURL: firstNonEmpty(
+                environment["ANTHROPIC_BASE_URL"],
+                stringValue(infoDictionary["ANTHROPIC_BASE_URL"])
             ),
             scriptedDemoPlaybackRate: playbackRateValue(
                 environment["GYMBUDDY_SCRIPTED_DEMO_PLAYBACK_RATE"] ??

@@ -85,7 +85,8 @@ final class AppComposition: ObservableObject {
 
         let llm: LLMClientProtocol = {
             if runtimeConfig.usesLiveAnthropic, let apiKey = runtimeConfig.anthropicAPIKey {
-                return AnthropicClient(credentials: .init(apiKey: apiKey))
+                let gatewayURL = runtimeConfig.anthropicBaseURL.flatMap { URL(string: $0) }
+                return AnthropicClient(credentials: .init(apiKey: apiKey, baseURL: gatewayURL))
             }
             return MockLLMClient()
         }()

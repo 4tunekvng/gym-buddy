@@ -9,16 +9,21 @@ import CoachingEngine
 public final class AnthropicClient: LLMClientProtocol, @unchecked Sendable {
     public struct Credentials: Sendable {
         public let apiKey: String
-        public init(apiKey: String) { self.apiKey = apiKey }
+        /// Override the default Anthropic endpoint (e.g. a gateway proxy).
+        /// Reads from ANTHROPIC_BASE_URL at call-site; nil falls back to the
+        /// canonical Anthropic Messages URL.
+        public let baseURL: URL?
+        public init(apiKey: String, baseURL: URL? = nil) {
+            self.apiKey = apiKey
+            self.baseURL = baseURL
+        }
     }
 
     private let configuration: LLMConfiguration
     private let credentials: Credentials
     private let urlSession: URLSession
-    /// Hardcoded Anthropic Messages endpoint. The constant is well-formed by
-    /// inspection so we lazy-construct via a guarded initializer rather than
-    /// `URL(string:)!` (which would trip the no-force-unwrap rule).
-    private static let baseURL: URL = {
+
+    private static let defaultBaseURL: URL = {
         guard let url = URL(string: "https://api.anthropic.com/v1/messages") else {
             preconditionFailure("Anthropic base URL constant is malformed — fix the literal.")
         }
@@ -36,8 +41,9 @@ public final class AnthropicClient: LLMClientProtocol, @unchecked Sendable {
     }
 
     public func complete(request: LLMRequest) async throws -> LLMResponse {
+        let endpoint = credentials.baseURL ?? Self.defaultBaseURL
         var urlRequest = URLRequest(
-            url: Self.baseURL,
+            url: endpoint,
             timeoutInterval: configuration.requestTimeout
         )
         urlRequest.httpMethod = "POST"

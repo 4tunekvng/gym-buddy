@@ -20,6 +20,10 @@ if [[ -z "${ELEVENLABS_API_KEY:-}" ]]; then
 fi
 
 TONE="${1:-standard}"
+if [[ ! "$TONE" =~ ^(standard|quiet|intense)$ ]]; then
+  echo "ERROR: Invalid tone '$TONE'. Must be one of: standard, quiet, intense" >&2
+  exit 1
+fi
 OUT="GymBuddy/Resources/TTSCache/$TONE"
 mkdir -p "$OUT"
 
