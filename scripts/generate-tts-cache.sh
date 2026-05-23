@@ -19,7 +19,25 @@ if [[ -z "${ELEVENLABS_API_KEY:-}" ]]; then
   exit 1
 fi
 
-TONE="${1:-standard}"
+TONE="standard"
+ONLY_MISSING=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --tone)
+      TONE="${2:-}"
+      shift 2
+      ;;
+    --only-missing)
+      ONLY_MISSING=1
+      shift
+      ;;
+    *)
+      echo "ERROR: Unknown argument '$1'" >&2
+      exit 1
+      ;;
+  esac
+done
+
 if [[ ! "$TONE" =~ ^(standard|quiet|intense)$ ]]; then
   echo "ERROR: Invalid tone '$TONE'. Must be one of: standard, quiet, intense" >&2
   exit 1
