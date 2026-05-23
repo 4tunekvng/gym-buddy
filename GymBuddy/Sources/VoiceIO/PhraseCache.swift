@@ -65,7 +65,10 @@ public final class PhraseCache: @unchecked Sendable {
         let total = weights.reduce(0, +)
         let pick = rng() * total
         var acc = 0.0
-        var chosen: Variant = pickPool[0]
+        // Default to the last element so floating-point rounding that leaves
+        // `acc` fractionally below `pick` at the final iteration still yields
+        // a valid selection rather than silently sticking to index 0.
+        var chosen: Variant = pickPool[pickPool.count - 1]
         for (i, variant) in pickPool.enumerated() {
             acc += weights[i]
             if pick <= acc {
