@@ -89,6 +89,13 @@ public final class DumbbellRowRepDetector: RepDetector, @unchecked Sendable {
             sample[.leftWrist],
             sample[.rightWrist]
         ))
+        // Cap the buffer so it doesn't grow unbounded when wrist tracking is
+        // unreliable for an extended period (e.g. poor lighting or occlusion).
+        // 30 samples ≈ 1 second at 30 fps — enough history to pick a side while
+        // bounding memory use to a fixed constant regardless of session length.
+        if sampleBufferForSideDetection.count > 30 {
+            sampleBufferForSideDetection.removeFirst(sampleBufferForSideDetection.count - 30)
+        }
         if sampleBufferForSideDetection.count < 10 { return }
 
         func travel(_ key: Side) -> Double {

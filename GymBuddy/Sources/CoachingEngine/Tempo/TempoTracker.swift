@@ -46,16 +46,29 @@ public struct TempoTracker: Sendable {
         )
         reps.append(sample)
 
-        // Baselines: once we have reps 2, 3, 4 as full reps, compute medians.
-        let baselineCandidates = reps.filter { !$0.isPartial && (2...4).contains($0.repNumber) }
-        if baselineCandidates.count >= 3 {
-            if baselineMs == nil {
-                let sorted = baselineCandidates.map(\.concentricMs).sorted()
-                baselineMs = sorted[sorted.count / 2]
-            }
-            if eccentricBaselineMs == nil {
-                let sorted = baselineCandidates.map(\.eccentricMs).sorted()
-                eccentricBaselineMs = sorted[sorted.count / 2]
+        // Baselines: collect full reps from reps 2 onward; once we have 3 such
+        // reps, lock in the median as the baseline (OQ-001).
+        //
+        // Rep 1 is always excluded (first-rep tempo is atypical from setup).
+        // The previous implementation required exactly reps 2–4, which silently
+        // prevented baseline establishment if rep 2 happened to be partial — in
+        // that case only two candidates (3, 4) could ever qualify, so baseline
+        // was never set and fatigue detection was disabled for the whole set.
+        // The fix extends the eligible window to "any full rep with repNumber >= 2"
+        // while still locking the baseline as soon as the first 3 qualify (so
+        // later reps with their own slowdowns don't inflate the baseline).
+        if baselineMs == nil || eccentricBaselineMs == nil {
+            let baselineCandidates = reps.filter { !$0.isPartial && $0.repNumber >= 2 }
+            if baselineCandidates.count >= 3 {
+                let first3 = Array(baselineCandidates.prefix(3))
+                if baselineMs == nil {
+                    let sorted = first3.map(\.concentricMs).sorted()
+                    baselineMs = sorted[sorted.count / 2]
+                }
+                if eccentricBaselineMs == nil {
+                    let sorted = first3.map(\.eccentricMs).sorted()
+                    eccentricBaselineMs = sorted[sorted.count / 2]
+                }
             }
         }
 
