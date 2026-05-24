@@ -39,8 +39,8 @@ public final class FixturePoseDetector: PoseDetecting, @unchecked Sendable {
         AsyncStream<BodyState> { continuation in
             self.continuation = continuation
             self.subscribed = true
-            continuation.onTermination = { _ in
-                self.task?.cancel()
+            continuation.onTermination = { [weak self] _ in
+                self?.task?.cancel()
             }
             if self.pendingStart {
                 // start() was called before the consumer subscribed; launch now.
