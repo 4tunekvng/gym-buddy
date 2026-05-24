@@ -103,10 +103,13 @@ public struct ContentSafetyFilter: Sendable {
         ]
         if patterns.contains(where: { lower.contains($0) }) { return true }
         // Broader numeric scan: any "eat 8xx/9xx/10xx/11xx/12xx/13xx/14xx calories" phrasing.
-        if let range = lower.range(of: #"eat\s+\d{3,4}\s+calories"#, options: .regularExpression) {
-            let matched = String(lower[range])
-            if let num = matched.split(separator: " ").dropFirst().first.flatMap({ Int($0) }),
-               num < 1500 {
+        // Use a capture-group regex so multi-whitespace variants ("eat  1200  calories")
+        // don't bypass extraction by leaving an empty token in a space-split.
+        if let numRange = lower.range(of: #"eat\s+(\d{3,4})\s+calories"#, options: .regularExpression) {
+            let matched = String(lower[numRange])
+            // Extract the digit sequence from the match by stripping the known prefix/suffix.
+            let digits = matched.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+            if let numStr = digits.dropFirst().first, let num = Int(numStr), num < 1500 {
                 return true
             }
         }
