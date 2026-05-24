@@ -134,7 +134,10 @@ public extension WorkoutSessionRecord {
     /// Build a record from one or more SessionObservations produced by the engine.
     static func build(from observations: [SessionObservation], painFlag: Bool, summary: String?) -> WorkoutSessionRecord {
         let now = Date()
-        let allReps = observations.flatMap(\.repEvents)
+        // Sort all reps chronologically so that multi-exercise sessions produce
+        // the correct session-level startedAt / endedAt regardless of the
+        // arbitrary Dictionary-iteration order used to group observations.
+        let allReps = observations.flatMap(\.repEvents).sorted { $0.startedAt < $1.startedAt }
         let startedAt = allReps.first.map { Date(timeIntervalSinceReferenceDate: $0.startedAt) } ?? now
         let endedAt = allReps.last.map { Date(timeIntervalSinceReferenceDate: $0.endedAt) } ?? now
         let performed = Dictionary(grouping: observations, by: \.exerciseId)
