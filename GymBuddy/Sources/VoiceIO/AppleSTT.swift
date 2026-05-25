@@ -36,6 +36,12 @@ public final class AppleSTT: @unchecked Sendable {
         guard let recognizer = recognizer, recognizer.isAvailable else {
             throw RecognitionError.recognizerUnavailable
         }
+        // Cancel any in-flight recognition task and clean up the engine before
+        // creating a new session, so a double-start doesn't leak the old task or
+        // leave a stale tap on the input node.
+        if task != nil {
+            stop()
+        }
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         if recognizer.supportsOnDeviceRecognition {
