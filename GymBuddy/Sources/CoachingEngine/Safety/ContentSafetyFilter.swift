@@ -105,7 +105,7 @@ public struct ContentSafetyFilter: Sendable {
         // Broader numeric scan: any "eat 8xx/9xx/10xx/11xx/12xx/13xx/14xx calories" phrasing.
         // Use a capture-group regex so multi-whitespace variants ("eat  1200  calories")
         // don't bypass extraction by leaving an empty token in a space-split.
-        if let numRange = lower.range(of: #"eat\s+(\d{3,4})\s+calories"#, options: .regularExpression) {
+        if let numRange = lower.range(of: #"eat\s+(\d{3,4})\b.{0,20}calories"#, options: .regularExpression) {
             let matched = String(lower[numRange])
             // Extract the digit sequence from the match by stripping the known prefix/suffix.
             let digits = matched.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
@@ -127,7 +127,7 @@ public struct ContentSafetyFilter: Sendable {
     private func detectsPushThroughPain(_ lower: String) -> Bool {
         // Fires if any of these coexist with a pain keyword in the same output.
         // (The LLM shouldn't, but this is belt-and-suspenders.)
-        let pushWords = ["push through", "don't stop", "work through the pain", "keep going anyway"]
+        let pushWords = ["push through", "don't stop", "work through the pain", "keep going anyway", "keep going", "push past", "you can handle", "ignore the", "just discomfort"]
         let painWords = ["pain", "hurts", "sharp", "popped"]
         let hasPush = pushWords.contains(where: { lower.contains($0) })
         let hasPain = painWords.contains(where: { lower.contains($0) })
