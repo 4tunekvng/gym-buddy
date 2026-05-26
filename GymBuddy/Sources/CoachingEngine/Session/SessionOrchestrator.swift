@@ -69,7 +69,7 @@ public final class SessionOrchestrator {
             }
             // Target-reached encouragement still fires at top-of-rep — that's a
             // celebration of the *just-finished* rep, not a forward-looking push.
-            if let target = config.targetReps, rep.repNumber >= target {
+            if let target = config.targetReps, rep.repNumber == target {
                 intents.append(.encouragement(
                     kind: .lastOne, timing: .topOfRep, timestamp: rep.endedAt
                 ))
