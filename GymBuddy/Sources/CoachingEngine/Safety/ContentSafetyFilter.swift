@@ -102,14 +102,18 @@ public struct ContentSafetyFilter: Sendable {
             "cut weight fast"
         ]
         if patterns.contains(where: { lower.contains($0) }) { return true }
-        // Broader numeric scan: any "eat 8xx/9xx/10xx/11xx/12xx/13xx/14xx calories" phrasing.
-        // Use a capture-group regex so multi-whitespace variants ("eat  1200  calories")
-        // don't bypass extraction by leaving an empty token in a space-split.
-        if let numRange = lower.range(of: #"eat\s+(\d{3,4})\b.{0,20}calories"#, options: .regularExpression) {
+        // Broader numeric scan: catch any phrasing like "eat about 1200 calories" or
+        // "eat around 800 calories" where words may appear between "eat" and the number.
+        // Pattern: "eat" followed by up to 30 chars (non-greedy), then a 3-or-4 digit number,
+        // then up to 20 chars, then "calories".  We extract the digit run directly rather
+        // than relying on whitespace-split position, so intervening words don't fool us.
+        if let numRange = lower.range(of: #"eat\b.{0,30}?\b(\d{3,4})\b.{0,20}calories"#, options: .regularExpression) {
             let matched = String(lower[numRange])
-            // Extract the digit sequence from the match by stripping the known prefix/suffix.
-            let digits = matched.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
-            if let numStr = digits.dropFirst().first, let num = Int(numStr), num < 1500 {
+            // Pull out every 3–4 digit token from the match and take the first one
+            // (the calorie figure); ignore "eat" itself which is never purely digits.
+            let tokenPattern = #"\b\d{3,4}\b"#
+            if let tokRange = matched.range(of: tokenPattern, options: .regularExpression),
+               let num = Int(matched[tokRange]), num < 1500 {
                 return true
             }
         }
