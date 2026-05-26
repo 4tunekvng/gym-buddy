@@ -13,7 +13,7 @@ public struct LLMConfiguration: Equatable, Sendable {
     public let streamingEnabled: Bool
 
     public init(
-        modelId: String = "claude-opus-4-5",
+        modelId: String = "claude-opus-4-7",
         maxTokensDefault: Int = 400,
         temperatureDefault: Double = 0.6,
         requestTimeout: TimeInterval = 30,
