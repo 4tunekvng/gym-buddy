@@ -9,9 +9,9 @@ import Foundation
 /// State semantics for the row FSM:
 ///   - `top` phase = arm at bottom of the pull (wrist low, elbow extended)
 ///   - `bottom` phase = arm at top of the pull (wrist high, elbow flexed)
-/// Naming keeps the FSM consistent across exercises: "descending" is always the
-/// eccentric phase (returning to start), "ascending" is always the concentric
-/// (driving phase). Tests cover this explicitly to prevent confusion.
+/// Naming keeps the FSM consistent across exercises: "ascending" is always the
+/// concentric phase (pulling the weight up), "descending" is always the eccentric
+/// (lowering back to start). Tests cover this explicitly to prevent confusion.
 public final class DumbbellRowRepDetector: RepDetector, @unchecked Sendable {
     public let exerciseId: ExerciseID = .dumbbellRow
     public private(set) var phase: RepPhase = .idle
