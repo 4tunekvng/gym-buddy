@@ -119,7 +119,7 @@ public final class SessionOrchestrator {
         guard !setEnded else { return [] }
         setEnded = true
         endReason = reason
-        let now = repEvents.last?.endedAt ?? Date().timeIntervalSince1970
+        let now = repEvents.last?.endedAt ?? Date().timeIntervalSinceReferenceDate
         var intents: [CoachingIntent] = []
         if let trigger = pendingFatigue {
             pendingFatigue = nil
@@ -154,7 +154,7 @@ public final class SessionOrchestrator {
             exerciseId: config.exerciseId,
             setNumber: config.setNumber,
             reason: endReason ?? .userTapped,
-            timestamp: repEvents.last?.endedAt ?? Date().timeIntervalSince1970,
+            timestamp: repEvents.last?.endedAt ?? Date().timeIntervalSinceReferenceDate,
             totalReps: repEvents.count,
             partialReps: repEvents.filter { $0.isPartial }.count
         )

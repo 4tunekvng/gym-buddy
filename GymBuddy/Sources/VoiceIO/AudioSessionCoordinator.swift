@@ -39,7 +39,11 @@ public final class AudioSessionCoordinator: @unchecked Sendable {
     public init() {}
 
     public var eventStream: AsyncStream<SessionEvent> {
-        AsyncStream { continuation in
+        // Finish any previously active stream before replacing the continuation
+        // so that callers who re-subscribe don't silently lose the old stream
+        // and so the backing notification observers are not leaked.
+        continuation?.finish()
+        return AsyncStream { continuation in
             self.continuation = continuation
             self.installObservers()
             continuation.onTermination = { [weak self] _ in
