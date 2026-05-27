@@ -49,10 +49,18 @@ public struct PainDetector: Sendable {
         for phrase in Self.painPhrases where lower.contains(phrase) {
             return phrase
         }
-        // Also catch bare "hurts" at word boundaries.
+        // Also catch bare "hurts" / "hurt" at word boundaries.
+        // Only suppress when the context is clearly normal workout exertion — e.g.
+        // "muscles are burning", "legs are burning". Do NOT suppress when "muscle"
+        // is paired with a pain verb ("my muscle hurts" is injury, not burn).
         let tokens = lower.split(whereSeparator: { !$0.isLetter })
         if tokens.contains("hurts") || tokens.contains("hurting") || tokens.contains("hurt") {
-            if !lower.contains("muscle") && !lower.contains("legs are burning") && !lower.contains("burn") {
+            let isWorkoutBurn = lower.contains("legs are burning")
+                || lower.contains("muscles are burning")
+                || lower.contains("muscle burn")
+                || lower.contains("it burns")
+                || lower.contains("burning sensation")
+            if !isWorkoutBurn {
                 return "hurts"
             }
         }
