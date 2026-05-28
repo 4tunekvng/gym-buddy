@@ -2,7 +2,7 @@ import Foundation
 
 /// Tracks per-rep tempo, establishes a baseline, and flags fatigue slowdowns.
 ///
-/// Baselines (reps 2–4, full reps only, per OQ-001):
+/// Baselines (first 3 full reps with repNumber >= 2, per OQ-001):
 ///   - `baselineMs`: median concentric duration.
 ///   - `eccentricBaselineMs`: median eccentric duration.
 ///

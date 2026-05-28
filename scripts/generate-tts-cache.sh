@@ -13,6 +13,7 @@
 #   scripts/generate-tts-cache.sh [--tone standard|quiet|intense] [--only-missing]
 
 set -euo pipefail
+cd "$(dirname "$0")/.."
 
 if [[ -z "${ELEVENLABS_API_KEY:-}" ]]; then
   echo "ERROR: ELEVENLABS_API_KEY not set." >&2
