@@ -24,7 +24,11 @@ ONLY_MISSING=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --tone)
-      TONE="${2:-}"
+      if [[ $# -lt 2 || -z "${2:-}" ]]; then
+        echo "ERROR: --tone requires a value (standard|quiet|intense)" >&2
+        exit 1
+      fi
+      TONE="$2"
       shift 2
       ;;
     --only-missing)
