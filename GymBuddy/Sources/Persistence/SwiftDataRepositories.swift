@@ -159,7 +159,15 @@ public final class SwiftDataMemoryRepository: MemoryRepository {
         var descriptor = FetchDescriptor<GymBuddySchemaV1.StoredCoachMemoryNote>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
-        descriptor.fetchLimit = max(limit * 4, 20)  // oversample, filter in memory
+        // When filtering by tags, we cannot push the predicate to SwiftData because
+        // tags are stored as a CSV string (not a first-class relationship).  To avoid
+        // silently truncating results — a fixed oversample may exhaust before finding
+        // `limit` matching rows — we fetch all rows when a tag filter is active and
+        // rely on memory filtering.  For the empty-tags (no-filter) path we apply the
+        // fetch limit directly, which is the common fast path.
+        if tags.isEmpty {
+            descriptor.fetchLimit = limit
+        }
         let rows = try context.fetch(descriptor)
         let notes: [CoachMemoryNote] = rows.map { row in
             CoachMemoryNote(
