@@ -47,7 +47,21 @@ public struct ReadinessScaler: Sendable {
             reasons.append("Low energy — pulling load back 10%")
         }
 
+        // Clamp to a maximum -15% reduction. If the raw multiplier would have
+        // gone below 0.85 (i.e. multiple triggers fired), rewrite the last
+        // reason added so it reflects the capped amount rather than a second
+        // full -10% that never materialises.
+        let rawMultiplier = loadMultiplier
         loadMultiplier = max(0.85, min(1.0, loadMultiplier))
+        if loadMultiplier > rawMultiplier {
+            // The clamp bit in — replace the last load-reduction reason to
+            // accurately name the cap rather than overstating the reduction.
+            if let lastIndex = reasons.indices.last,
+               reasons[lastIndex].contains("10%") {
+                let actualReduction = Int(round((1.0 - loadMultiplier) * 100))
+                reasons[lastIndex] = "Load is capped at -\(actualReduction)% total (multiple recovery flags)"
+            }
+        }
 
         let scaling = Scaling(
             loadMultiplier: loadMultiplier,
