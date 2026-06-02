@@ -13,12 +13,12 @@ This directory (`GymBuddy/`) is the Swift Package workspace + the iOS app target
 
 ## Clone and run in under 10 minutes
 
-1. **Requirements**: macOS with Xcode 16+ (verified on Xcode 26.4 / iOS 17 SDK). `xcodegen` for regenerating the iOS app project — `brew install xcodegen` once.
+1. **Requirements**: macOS with full Xcode (not just Command Line Tools), **Xcode 15.4+** — Swift 5.10 / iOS 17 SDK. CI gates on Xcode 15.4 (the floor); the repo also builds on Xcode 16/26 (verified locally on 26.4). `xcodegen` for regenerating the iOS app project — `brew install xcodegen` once.
 2. **Clone** this repo, then `cd GymBuddy`.
 3. **Run the full test suite** (pure-Swift packages, no Xcode project needed):
 
     ```bash
-    swift test                        # 161 tests, ~0.1s runtime
+    swift test                        # 173 tests, ~0.1s runtime
     swift test --filter NorthStarDemoTest
     swift run coaching-cli            # prints the full hero moment
     ```
