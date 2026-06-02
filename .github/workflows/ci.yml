@@ -67,10 +67,31 @@ jobs:
   lint:
     name: SwiftLint + dependency-direction lint
     runs-on: macos-14
+    env:
+      # Pin SwiftLint to an exact release so the ruleset cannot drift. Single source
+      # of truth for the lint job — bump this in lockstep with the team's local
+      # version (`brew upgrade swiftlint` then update here). 0.63.2 is current.
+      SWIFTLINT_VERSION: 0.63.2
     steps:
       - uses: actions/checkout@v4
-      - name: Install SwiftLint
-        run: brew install swiftlint
+      - name: Install SwiftLint (pinned)
+        # Unpinned `brew install swiftlint` previously broke CI: 0.63.x added/flipped
+        # rules (static_over_final_class, the trailing_comma default) that older
+        # versions never fired, and `--strict` turns every new warning into a hard
+        # error. The portable zip ships a universal (x86_64+arm64) binary, so it runs
+        # on the arm64 macos-14 runner.
+        run: |
+          set -euo pipefail
+          curl -fsSL -o portable_swiftlint.zip \
+            "https://github.com/realm/SwiftLint/releases/download/${SWIFTLINT_VERSION}/portable_swiftlint.zip"
+          unzip -o -q portable_swiftlint.zip -d "$RUNNER_TEMP/swiftlint"
+          echo "$RUNNER_TEMP/swiftlint" >> "$GITHUB_PATH"
+      - name: Verify SwiftLint version
+        run: |
+          set -euo pipefail
+          INSTALLED="$(swiftlint version)"
+          echo "SwiftLint ${INSTALLED} (expected ${SWIFTLINT_VERSION})"
+          test "${INSTALLED}" = "${SWIFTLINT_VERSION}"
       - name: SwiftLint
         run: swiftlint --strict --reporter github-actions-logging
       - name: Dependency direction (no forbidden imports in CoachingEngine)
