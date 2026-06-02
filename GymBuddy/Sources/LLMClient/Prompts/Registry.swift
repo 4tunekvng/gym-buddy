@@ -18,6 +18,28 @@ public enum PromptRegistry {
         public let user: String
     }
 
+    // MARK: - Prompt-injection sanitizer
+
+    /// Neutralizes any externally-sourced string before it is interpolated into a
+    /// prompt. Strips carriage returns, newlines, and double-quotes (replacing
+    /// each with a space) so caller-supplied text — a user question, a freeform
+    /// note, an LLM-extracted memory reference, a raw conversation transcript —
+    /// cannot break out of its quoted/structural context and inject instructions.
+    ///
+    /// The prompt is plain text (no JSON/markdown escaping), so newline + an
+    /// imperative ("ignore previous instructions…") is the whole attack. Removing
+    /// those three characters defangs it while preserving the semantic content
+    /// (words are kept; only structural whitespace is flattened to spaces).
+    ///
+    /// Apply to EVERY value that originates outside this codebase. Do NOT apply to
+    /// enum `rawValue`s or numeric fields — those are a controlled vocabulary.
+    static func sanitizeForPrompt(_ s: String) -> String {
+        s.replacingOccurrences(of: "\r", with: " ")
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\"", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     // MARK: - Safety preamble
 
     /// Prepended to every system prompt. See docs/Safety.md.
@@ -48,7 +70,7 @@ public enum PromptRegistry {
             "tempo_baseline_ms=\(observation.tempoBaselineMs.map { "\($0)" } ?? "n/a")",
             "fatigue_at_rep=\(observation.fatigueSlowdownAtRep.map { "\($0)" } ?? "n/a")",
             "prior_best_reps=\(observation.priorSessionBestReps.map { "\($0)" } ?? "n/a")",
-            "memory_refs=\(observation.memoryReferences.prefix(3).joined(separator: " | "))"
+            "memory_refs=\(observation.memoryReferences.prefix(3).map(Self.sanitizeForPrompt).joined(separator: " | "))"
         ]
 
         let system = """
@@ -108,9 +130,9 @@ public enum PromptRegistry {
         - prior_best_reps=\(observation.priorSessionBestReps.map { "\($0)" } ?? "n/a")
 
         Memory references:
-        \(observation.memoryReferences.prefix(5).map { "- \($0)" }.joined(separator: "\n"))
+        \(observation.memoryReferences.prefix(5).map { "- \(Self.sanitizeForPrompt($0))" }.joined(separator: "\n"))
 
-        User question: "\(userQuestion)"
+        User question: "\(Self.sanitizeForPrompt(userQuestion))"
         """
 
         return RenderedPrompt(
@@ -146,10 +168,10 @@ public enum PromptRegistry {
         - energy=\(check.energy.map { "\($0)" } ?? "n/a")
         - sleep_hours=\(check.sleepHours.map { "\($0)" } ?? "n/a")
         - hrv_delta_pct=\(check.hrvDeltaPct.map { "\($0)" } ?? "n/a")
-        - user_note=\(check.userFreeformNote ?? "")
+        - user_note=\(Self.sanitizeForPrompt(check.userFreeformNote ?? ""))
 
         Memory references:
-        \(memoryReferences.prefix(5).map { "- \($0)" }.joined(separator: "\n"))
+        \(memoryReferences.prefix(5).map { "- \(Self.sanitizeForPrompt($0))" }.joined(separator: "\n"))
         """
         return RenderedPrompt(
             id: morningReadinessId,
@@ -185,9 +207,9 @@ public enum PromptRegistry {
         - If nothing durable, output [].
         """
         let user = """
-        Source: \(sourceKind)
+        Source: \(Self.sanitizeForPrompt(sourceKind))
         Conversation:
-        \(conversationText)
+        \(Self.sanitizeForPrompt(conversationText))
 
         Output JSON now.
         """
