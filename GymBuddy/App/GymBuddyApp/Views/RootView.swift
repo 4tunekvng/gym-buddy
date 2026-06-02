@@ -67,7 +67,7 @@ struct RootView: View {
             // If so, skip straight to Today so returning users don't re-onboard.
             guard !didCheckOnboarding else { return }
             didCheckOnboarding = true
-            if let _ = try? await composition.userProfileRepo.load() {
+            if (try? await composition.userProfileRepo.load()) != nil {
                 router.isOnboarded = true
                 router.current = .today
             }

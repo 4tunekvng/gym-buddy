@@ -56,7 +56,7 @@ public final class AppleHealthReader: HealthReader, @unchecked Sendable {
                     HKCategoryValueSleepAnalysis.asleepCore.rawValue,
                     HKCategoryValueSleepAnalysis.asleepREM.rawValue,
                     HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
-                    HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue,
+                    HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue
                 ]
                 let asleep = categories.filter { asleepValues.contains($0.value) }
                 let totalSeconds = asleep.reduce(0) { $0 + $1.endDate.timeIntervalSince($1.startDate) }

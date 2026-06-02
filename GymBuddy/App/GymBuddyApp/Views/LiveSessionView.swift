@@ -118,10 +118,11 @@ struct LiveSessionView: View {
                     secondaryButtonAccessibilityIdentifier: "live_cancel",
                     onSecondaryAction: {
                         Task { await viewModel.cancel() }
+                    },
+                    onConfirm: {
+                        Task { await viewModel.completeSetupAndStart() }
                     }
-                ) {
-                    Task { await viewModel.completeSetupAndStart() }
-                }
+                )
                 .padding(.horizontal, DS.Space.m)
                 runtimeStatusPanel
                     .padding(.horizontal, DS.Space.l)
