@@ -21,7 +21,13 @@ Package.resolved
 
 ## Secrets (never commit)
 .env
-.env.local
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+.dev.vars
+.dev.vars.*
 *.pem
 apiKey*.plist
 GymBuddy/App/GymBuddyApp/Info.local.plist
