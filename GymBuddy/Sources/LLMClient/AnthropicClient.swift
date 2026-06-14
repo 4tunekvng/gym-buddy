@@ -50,10 +50,11 @@ public final class AnthropicClient: LLMClientProtocol, @unchecked Sendable {
         urlRequest.addValue(credentials.apiKey, forHTTPHeaderField: "x-api-key")
         urlRequest.addValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
         urlRequest.addValue("application/json", forHTTPHeaderField: "content-type")
+        urlRequest.addValue("prompt-caching-2024-07-31", forHTTPHeaderField: "anthropic-beta")
 
         let payload = AnthropicRequestPayload(
             model: configuration.modelId,
-            system: request.system,
+            system: [.init(text: request.system)],
             max_tokens: request.maxTokens,
             temperature: request.temperature,
             messages: [.init(role: "user", content: request.user)]
@@ -99,10 +100,18 @@ public final class AnthropicClient: LLMClientProtocol, @unchecked Sendable {
 
 private struct AnthropicRequestPayload: Encodable {
     let model: String
-    let system: String
+    let system: [SystemBlock]
     let max_tokens: Int
     let temperature: Double
     let messages: [Message]
+
+    struct SystemBlock: Encodable {
+        let type: String = "text"
+        let text: String
+        let cache_control: CacheControl = .init()
+        struct CacheControl: Encodable { let type: String = "ephemeral" }
+    }
+
     struct Message: Encodable { let role: String; let content: String }
 }
 
