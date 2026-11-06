@@ -131,7 +131,10 @@ public struct ContentSafetyFilter: Sendable {
     private func detectsPushThroughPain(_ lower: String) -> Bool {
         // Fires if any of these coexist with a pain keyword in the same output.
         // (The LLM shouldn't, but this is belt-and-suspenders.)
-        let pushWords = ["push through", "don't stop", "work through the pain", "keep going anyway", "keep going", "push past", "you can handle", "ignore the", "just discomfort"]
+        // "keep going" alone is too broad — legitimate coaching often references
+        // a past injury ("given your shoulder pain, keep going with the modified row").
+        // "keep going anyway" is the specific harmful phrase and is retained.
+        let pushWords = ["push through", "don't stop", "work through the pain", "keep going anyway", "push past", "you can handle", "ignore the", "just discomfort"]
         let painWords = ["pain", "hurts", "sharp", "popped"]
         let hasPush = pushWords.contains(where: { lower.contains($0) })
         let hasPain = painWords.contains(where: { lower.contains($0) })
