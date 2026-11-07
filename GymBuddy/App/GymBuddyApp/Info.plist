@@ -4,6 +4,8 @@
 <dict>
 	<key>ANTHROPIC_API_KEY</key>
 	<string></string>
+	<key>ANTHROPIC_BASE_URL</key>
+	<string>https://fortune-llm.fortunee.workers.dev</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleExecutable</key>
