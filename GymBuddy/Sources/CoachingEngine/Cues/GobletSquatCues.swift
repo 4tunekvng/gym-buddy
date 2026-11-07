@@ -4,14 +4,10 @@ import Foundation
 ///
 /// Sources: NSCA Essentials, Ch 16; Kraemer & Fleck on lower-body biomechanics.
 public enum GobletSquatCues {
-    public static let all: [CueEvaluator] = [
-        SquatShallow(),
-        KneeValgusLeft(),
-        KneeValgusRight(),
-        TorsoForward(),
-        HeelLift(),
-        DumbbellDrift()
-    ]
+    public static var all: [CueEvaluator] {
+        [SquatShallow(), KneeValgusLeft(), KneeValgusRight(),
+         TorsoForward(), HeelLift(), DumbbellDrift()]
+    }
 
     /// Squat shallow: hip above parallel with knee.
     public struct SquatShallow: CueEvaluator {

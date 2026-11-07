@@ -6,14 +6,10 @@ import Foundation
 /// on bodyweight pressing patterns. Each cue has positive/negative fixtures in
 /// Tests/CoachingEngineTests/Fixtures/pushup/.
 public enum PushUpCues {
-    public static let all: [CueEvaluator] = [
-        HipSag(),
-        HipPike(),
-        ElbowFlare(),
-        PartialRangeBottom(),
-        PartialRangeTop(),
-        HeadPositionBad()
-    ]
+    public static var all: [CueEvaluator] {
+        [HipSag(), HipPike(), ElbowFlare(),
+         PartialRangeBottom(), PartialRangeTop(), HeadPositionBad()]
+    }
 
     /// Hip sag: hips drop below the shoulder-ankle line.
     public struct HipSag: CueEvaluator {

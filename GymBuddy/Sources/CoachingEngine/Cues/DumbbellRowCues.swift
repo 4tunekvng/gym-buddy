@@ -5,13 +5,10 @@ import Foundation
 /// Sources: NSCA Essentials, Ch 14 (pulling patterns); Contreras on unilateral
 /// loading and anti-rotation.
 public enum DumbbellRowCues {
-    public static let all: [CueEvaluator] = [
-        LumbarFlexion(),
-        ElbowFlareRow(),
-        TorsoInstability(),
-        PartialRangeRowTop(),
-        TempoJerkyRow()
-    ]
+    public static var all: [CueEvaluator] {
+        [LumbarFlexion(), ElbowFlareRow(), TorsoInstability(),
+         PartialRangeRowTop(), TempoJerkyRow()]
+    }
 
     /// Lumbar flexion: the back rounds under load.
     public struct LumbarFlexion: CueEvaluator {
