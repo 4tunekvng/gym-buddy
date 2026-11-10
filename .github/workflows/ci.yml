@@ -8,12 +8,12 @@ on:
 jobs:
   swift-test:
     name: swift test (CoachingEngine + adapters)
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
       - name: Resolve packages
         working-directory: GymBuddy
         run: swift package resolve
@@ -33,40 +33,40 @@ jobs:
 
   ios-build:
     name: Build iOS app
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
       - name: Build for iOS simulator
         working-directory: GymBuddy
         run: |
           xcodebuild build-for-testing \
             -scheme GymBuddyApp \
-            -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.5' \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5' \
             -configuration Debug | xcpretty || true
 
   ui-tests:
     name: XCUITest (onboarding + live session happy path)
-    runs-on: macos-14
+    runs-on: macos-15
     needs: ios-build
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
       - name: Run UI tests
         working-directory: GymBuddy
         run: |
           xcodebuild test-without-building \
             -scheme GymBuddyApp \
-            -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.5' \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5' \
             -only-testing:GymBuddyAppUITests | xcpretty || true
 
   lint:
     name: SwiftLint + dependency-direction lint
-    runs-on: macos-14
+    runs-on: macos-15
     env:
       # Pin SwiftLint to an exact release so the ruleset cannot drift. Single source
       # of truth for the lint job — bump this in lockstep with the team's local
@@ -79,7 +79,7 @@ jobs:
         # rules (static_over_final_class, the trailing_comma default) that older
         # versions never fired, and `--strict` turns every new warning into a hard
         # error. The portable zip ships a universal (x86_64+arm64) binary, so it runs
-        # on the arm64 macos-14 runner.
+        # on the arm64 macos-15 runner.
         run: |
           set -euo pipefail
           curl -fsSL -o portable_swiftlint.zip \
@@ -107,11 +107,11 @@ jobs:
 
   north-star-guard:
     name: North-star demo test (hero moment)
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
       - name: Resolve + run just the hero test
         working-directory: GymBuddy
         run: swift test --filter NorthStarDemoTest
