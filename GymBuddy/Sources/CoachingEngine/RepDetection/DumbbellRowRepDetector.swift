@@ -55,7 +55,8 @@ public final class DumbbellRowRepDetector: RepDetector, @unchecked Sendable {
         // Row is "inverted" in angle-vs-state mapping: the concentric (pulling
         // the dumbbell up) *reduces* the elbow angle, so "at top of pull" is
         // a small elbow angle. Our generic top/bottom names refer to rep-cycle
-        // phases, not elbow positions — tests cover this mapping explicitly.
+        // phases, not elbow positions: the pull is `.ascending` and the
+        // lowering is `.descending`, as for every other exercise.
         switch phase {
         case .idle:
             if elbowAngle > tuning.repAtTop {
@@ -64,18 +65,18 @@ public final class DumbbellRowRepDetector: RepDetector, @unchecked Sendable {
         case .top:
             if elbowAngle < tuning.repEnteringDescent {
                 if repStartTimestamp == nil { repStartTimestamp = sample.timestamp }
-                phase = .descending
+                phase = .ascending
             }
-        case .descending:
+        case .ascending:
             if elbowAngle < tuning.repAtBottom {
                 pullTopTimestamp = sample.timestamp
                 phase = .bottom
             }
         case .bottom:
             if elbowAngle > tuning.repExitingBottom {
-                phase = .ascending
+                phase = .descending
             }
-        case .ascending:
+        case .descending:
             if elbowAngle > tuning.repAtTop {
                 return finishRep(at: sample.timestamp)
             }

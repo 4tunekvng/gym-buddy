@@ -27,7 +27,7 @@ public final class SessionOrchestrator {
     /// is detected. The detector can only know rep N's concentric was slow
     /// AFTER rep N completes (top of rep). Speaking "one more" right then would
     /// land at the top of rep N — half a rep early. Instead we stage the
-    /// trigger and emit at the next bottom→ascending phase transition (= start
+    /// trigger and emit at the next entry into `.ascending` (= start
     /// of rep N+1's concentric, which is when the user is grinding the rep).
     /// Anything still pending at set end gets flushed so we never silently drop
     /// an encouragement.
@@ -76,10 +76,11 @@ public final class SessionOrchestrator {
             }
         }
 
-        // Detect bottom→ascending transition AFTER the detector has stepped.
-        // That is the user's concentric-start moment for the in-progress rep.
+        // Detect entry into .ascending AFTER the detector has stepped. That is
+        // the user's concentric-start moment for the in-progress rep: from
+        // .bottom for push-ups and squats, from .top for rows (pull first).
         let newPhase = repDetector.phase
-        if previousPhase == .bottom, newPhase == .ascending,
+        if previousPhase != .ascending, newPhase == .ascending,
            let trigger = pendingFatigue {
             pendingFatigue = nil
             let fatigueOutput = intentEmitter.onFatigueTriggered(trigger, at: sample.timestamp)

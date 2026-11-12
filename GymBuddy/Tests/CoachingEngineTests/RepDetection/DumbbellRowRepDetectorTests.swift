@@ -3,30 +3,35 @@ import XCTest
 
 final class DumbbellRowRepDetectorTests: XCTestCase {
 
-    /// Build a row pose sample with a given working-arm elbow angle. `side` chooses
-    /// which arm is working; the other arm is held at a bottom-ish angle.
+    /// Build a row pose sample whose working-arm elbow angle is exactly
+    /// `elbowDegrees`: shoulder straight above the elbow, wrist swung around
+    /// the elbow, so 170° hangs the wrist low and 80° brings it up. The other
+    /// arm stays still, so side detection picks the working arm.
     private func sample(
         side: DumbbellRowRepDetector.Side,
         elbowDegrees: Double,
         t: TimeInterval
     ) -> PoseSample {
-        // For the working side we'll set shoulder and wrist positions so the angle
-        // at the elbow equals `elbowDegrees`. Shoulder at (shX, 0.55), wrist near
-        // hip when pull is bottom, up near shoulder when pull is top.
-        let shX: Double = side == .left ? 0.35 : 0.45
-        let shY: Double = 0.55
-        // Wrist y drops as pull phase decreases (elbow straighter). At elbow=170° (bottom of row),
-        // wrist is at 0.75. At elbow=80° (top of row), wrist is at 0.45.
-        let normalized = (170.0 - elbowDegrees) / (170.0 - 80.0)  // 0 at bottom, 1 at top
-        let wY = 0.75 - max(0, min(1, normalized)) * 0.30
-        let wX = shX
-        // Elbow: between shoulder and wrist, offset to the outside a bit.
-        let eY = (shY + wY) / 2
-        let eX = shX + 0.015 * (side == .right ? 1 : -1)
-
-        var joints: [JointName: Keypoint] = [
-            .leftShoulder: Keypoint(x: 0.35, y: shY, confidence: 0.95),
-            .rightShoulder: Keypoint(x: 0.45, y: shY, confidence: 0.95),
+        let workX: Double = side == .left ? 0.35 : 0.45
+        let restX: Double = side == .left ? 0.45 : 0.35
+        let radians = elbowDegrees * .pi / 180
+        let forearm = 0.15
+        let elbowY = 0.60
+        let wrist = Keypoint(
+            x: workX + forearm * sin(radians),
+            y: elbowY - forearm * cos(radians),
+            confidence: 0.93
+        )
+        let workElbow = Keypoint(x: workX, y: elbowY, confidence: 0.93)
+        let restElbow = Keypoint(x: restX, y: 0.65, confidence: 0.93)
+        let restWrist = Keypoint(x: restX, y: 0.75, confidence: 0.93)
+        let joints: [JointName: Keypoint] = [
+            .leftShoulder: Keypoint(x: 0.35, y: 0.45, confidence: 0.95),
+            .rightShoulder: Keypoint(x: 0.45, y: 0.45, confidence: 0.95),
+            .leftElbow: side == .left ? workElbow : restElbow,
+            .rightElbow: side == .right ? workElbow : restElbow,
+            .leftWrist: side == .left ? wrist : restWrist,
+            .rightWrist: side == .right ? wrist : restWrist,
             .leftHip: Keypoint(x: 0.35, y: 0.6, confidence: 0.95),
             .rightHip: Keypoint(x: 0.45, y: 0.6, confidence: 0.95),
             .leftKnee: Keypoint(x: 0.33, y: 0.75, confidence: 0.9),
@@ -35,25 +40,51 @@ final class DumbbellRowRepDetectorTests: XCTestCase {
             .rightAnkle: Keypoint(x: 0.47, y: 0.9, confidence: 0.88),
             .nose: Keypoint(x: 0.33, y: 0.50, confidence: 0.9)
         ]
-        // Working side uses the elbow/wrist computed above.
-        // Supporting side stays near the bottom (arm extended).
-        let supportShX: Double = side == .left ? 0.45 : 0.35
-        let supportEY: Double = 0.65
-        let supportWY: Double = 0.75
-
-        if side == .left {
-            joints[.leftElbow] = Keypoint(x: eX, y: eY, confidence: 0.93)
-            joints[.leftWrist] = Keypoint(x: wX, y: wY, confidence: 0.93)
-            joints[.rightElbow] = Keypoint(x: supportShX, y: supportEY, confidence: 0.93)
-            joints[.rightWrist] = Keypoint(x: supportShX, y: supportWY, confidence: 0.93)
-        } else {
-            joints[.rightElbow] = Keypoint(x: eX, y: eY, confidence: 0.93)
-            joints[.rightWrist] = Keypoint(x: wX, y: wY, confidence: 0.93)
-            joints[.leftElbow] = Keypoint(x: supportShX, y: supportEY, confidence: 0.93)
-            joints[.leftWrist] = Keypoint(x: supportShX, y: supportWY, confidence: 0.93)
-        }
-
         return PoseSample(timestamp: t, joints: joints)
+    }
+
+    /// Side detection, then one rep: 170° → 80° (pull starts at 2.1 s, top at
+    /// 2.3 s), hold, then 80° → 170° (arm extended again at 2.9 s). Returns the phase after each pull and
+    /// lowering sample, plus the finished rep.
+    private func runOneRep(
+        _ d: DumbbellRowRepDetector
+    ) -> (pull: [RepPhase], lower: [RepPhase], rep: RepEvent?) {
+        let warmup = [170.0, 168, 170, 166, 170, 168, 170, 166, 170, 168, 170, 170]
+        for (i, a) in warmup.enumerated() {
+            _ = d.observe(sample(side: .right, elbowDegrees: a, t: Double(i) * 0.1))
+        }
+        var pull: [RepPhase] = []
+        for (i, a) in [140.0, 110, 80].enumerated() {
+            _ = d.observe(sample(side: .right, elbowDegrees: a, t: 2.1 + Double(i) * 0.1))
+            pull.append(d.phase)
+        }
+        _ = d.observe(sample(side: .right, elbowDegrees: 80, t: 2.4))
+        var lower: [RepPhase] = []
+        var rep: RepEvent?
+        for (i, a) in [100.0, 120, 140, 160, 170].enumerated() {
+            rep = d.observe(sample(side: .right, elbowDegrees: a, t: 2.5 + Double(i) * 0.1))
+            lower.append(d.phase)
+        }
+        return (pull, lower, rep)
+    }
+
+    func testPullIsAscendingAndLoweringIsDescending() {
+        let d = DumbbellRowRepDetector()
+
+        let result = runOneRep(d)
+
+        XCTAssertEqual(result.pull, [.ascending, .ascending, .bottom])
+        XCTAssertEqual(result.lower, [.descending, .descending, .descending, .descending, .top])
+    }
+
+    func testEccentricCoversTheWholeLowering() throws {
+        let d = DumbbellRowRepDetector()
+
+        let rep = try XCTUnwrap(runOneRep(d).rep)
+
+        XCTAssertEqual(rep.repNumber, 1)
+        XCTAssertEqual(rep.concentricDuration, 0.2, accuracy: 0.001)
+        XCTAssertEqual(rep.eccentricDuration, 0.6, accuracy: 0.001)
     }
 
     func testSideEstablishmentPicksTheMovingArm() {
@@ -88,7 +119,7 @@ final class DumbbellRowRepDetectorTests: XCTestCase {
         }
 
         func runRep(startT: TimeInterval) {
-            for (i, a) in [170.0, 170, 140, 110, 85, 85, 110, 140, 170].enumerated() {
+            for (i, a) in [170.0, 170, 140, 110, 80, 80, 110, 140, 170].enumerated() {
                 if let r = d.observe(sample(side: .right, elbowDegrees: a, t: startT + Double(i) * 0.05)) {
                     events.append(r)
                 }

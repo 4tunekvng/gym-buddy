@@ -51,7 +51,10 @@ public struct ExerciseTuning: Sendable {
         repEnteringDescent: Angle(degrees: 160),
         repAtBottom: Angle(degrees: 85),
         repExitingBottom: Angle(degrees: 95),
-        repAtTop: Angle(degrees: 80),
+        // Arm extended again: the lowering lasts until the elbow opens past
+        // this, so the eccentric is measured over the whole lowering. Above
+        // repEnteringDescent so sensor jitter at lockout can't start a rep.
+        repAtTop: Angle(degrees: 165),
         partialRomThreshold: 0.75,
         cueTuning: [
             .lumbarFlexion: 0.07,
