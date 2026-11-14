@@ -4,6 +4,9 @@ on:
   push:
     branches: [ main ]
   pull_request:
+  # Lets a job or person re-run CI when GitHub's macOS runners are
+  # saturated and cancel a run ("job was not acquired by Runner").
+  workflow_dispatch:
 
 jobs:
   swift-test:
