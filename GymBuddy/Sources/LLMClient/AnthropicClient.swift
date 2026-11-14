@@ -69,12 +69,22 @@ public final class AnthropicClient: LLMClientProtocol, @unchecked Sendable {
         guard (200..<300).contains(http.statusCode) else {
             throw LLMClientError.networkFailure("status_\(http.statusCode)")
         }
+        return try Self.response(from: data)
+    }
+
+    /// Decode a Messages API body. `input_tokens` counts only the uncached part
+    /// of the prompt; since the system block is sent with `cache_control`, the
+    /// cached reads and cache writes are added so `tokensIn` is the whole prompt.
+    static func response(from data: Data) throws -> LLMResponse {
         let decoded = try JSONDecoder().decode(AnthropicResponsePayload.self, from: data)
         let text = decoded.content.first(where: { $0.type == "text" })?.text ?? ""
+        let usage = decoded.usage
         return LLMResponse(
             text: text,
-            tokensIn: decoded.usage.input_tokens,
-            tokensOut: decoded.usage.output_tokens,
+            tokensIn: usage.input_tokens
+                + (usage.cache_read_input_tokens ?? 0)
+                + (usage.cache_creation_input_tokens ?? 0),
+            tokensOut: usage.output_tokens,
             modelId: decoded.model
         )
     }
@@ -121,5 +131,10 @@ private struct AnthropicResponsePayload: Decodable {
     let content: [ContentBlock]
     let usage: Usage
     struct ContentBlock: Decodable { let type: String; let text: String? }
-    struct Usage: Decodable { let input_tokens: Int; let output_tokens: Int }
+    struct Usage: Decodable {
+        let input_tokens: Int
+        let output_tokens: Int
+        let cache_read_input_tokens: Int?
+        let cache_creation_input_tokens: Int?
+    }
 }
