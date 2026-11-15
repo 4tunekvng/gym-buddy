@@ -179,8 +179,10 @@ struct TodayView: View {
     /// `PlanDayPicker` so the logic is covered by Swift-package tests and
     /// shared across CLI / preview / iOS app.
     static func pickTodayPlanDay(from plan: Plan?) -> PlanDay? {
-        PlanDayPicker.dayForToday(
+        guard let plan else { return nil }
+        return PlanDayPicker.dayForToday(
             in: plan,
+            weekNumber: PlanDayPicker.weekNumber(of: plan),
             weekdayMondayFirst: PlanDayPicker.mondayFirstWeekday()
         )
     }

@@ -3,7 +3,10 @@ import XCTest
 
 final class PlanDayPickerTests: XCTestCase {
 
-    private func makePlan(workoutWeekdays: Set<Int>) -> Plan {
+    private func makePlan(
+        workoutWeekdays: Set<Int>,
+        createdAt: Date = Date()
+    ) -> Plan {
         let weeks: [PlanWeek] = (1...4).map { weekNo in
             let days: [PlanDay] = (1...7).map { dow in
                 PlanDay(
@@ -12,49 +15,135 @@ final class PlanDayPickerTests: XCTestCase {
                     isRestDay: !workoutWeekdays.contains(dow),
                     exercises: workoutWeekdays.contains(dow) ? [
                         PlannedExercise(exerciseId: .pushUp, sets: [
-                            PlannedSet(setNumber: 1, targetReps: 10)
+                            // Reps rise one per week, like PlanGenerator.
+                            PlannedSet(setNumber: 1, targetReps: 9 + weekNo)
                         ])
                     ] : []
                 )
             }
             return PlanWeek(weekNumber: weekNo, days: days)
         }
-        return Plan(weeks: weeks, rationale: "")
+        return Plan(createdAt: createdAt, weeks: weeks, rationale: "")
     }
 
     func testExactWeekdayMatchIsPreferred() {
         let plan = makePlan(workoutWeekdays: [1, 3, 5])
         // Today is Wednesday (3).
-        let day = PlanDayPicker.dayForToday(in: plan, weekdayMondayFirst: 3)
+        let day = PlanDayPicker.dayForToday(
+            in: plan, weekNumber: 1, weekdayMondayFirst: 3
+        )
         XCTAssertEqual(day?.dayOfWeek, 3)
     }
 
     func testFallsBackToFirstNonRestDayIfNoExactMatch() {
         let plan = makePlan(workoutWeekdays: [1, 3, 5])
         // Today is Tuesday (2) — not in the plan.
-        let day = PlanDayPicker.dayForToday(in: plan, weekdayMondayFirst: 2)
+        let day = PlanDayPicker.dayForToday(
+            in: plan, weekNumber: 1, weekdayMondayFirst: 2
+        )
         XCTAssertEqual(day?.dayOfWeek, 1, "Expected fallback to Monday since Tuesday is a rest day")
+    }
+
+    func testPicksTheCurrentWeeksDaySoProgressionReachesTheUser() {
+        let plan = makePlan(workoutWeekdays: [1, 3, 5])
+
+        let day = PlanDayPicker.dayForToday(
+            in: plan, weekNumber: 3, weekdayMondayFirst: 3
+        )
+
+        XCTAssertEqual(day?.weekNumber, 3)
+        XCTAssertEqual(day?.exercises.first?.sets.first?.targetReps, 12)
+    }
+
+    func testFallbackAlsoStaysInTheCurrentWeek() {
+        let plan = makePlan(workoutWeekdays: [1, 3, 5])
+
+        let day = PlanDayPicker.dayForToday(
+            in: plan, weekNumber: 2, weekdayMondayFirst: 2
+        )
+
+        XCTAssertEqual(day?.weekNumber, 2)
+        XCTAssertEqual(day?.dayOfWeek, 1)
+    }
+
+    func testWeekNumberCountsSevenDayBlocksFromPlanCreation() throws {
+        let cal = try utcCalendar()
+        let created = try day(2026, 4, 15, cal)  // a Wednesday
+        let plan = makePlan(workoutWeekdays: [1], createdAt: created)
+
+        let sameDay = PlanDayPicker.weekNumber(
+            of: plan, on: created, calendar: cal
+        )
+        let day6 = try PlanDayPicker.weekNumber(
+            of: plan, on: day(2026, 4, 21, cal), calendar: cal
+        )
+        let day7 = try PlanDayPicker.weekNumber(
+            of: plan, on: day(2026, 4, 22, cal), calendar: cal
+        )
+        let day15 = try PlanDayPicker.weekNumber(
+            of: plan, on: day(2026, 4, 30, cal), calendar: cal
+        )
+
+        XCTAssertEqual(sameDay, 1)
+        XCTAssertEqual(day6, 1)
+        XCTAssertEqual(day7, 2)
+        XCTAssertEqual(day15, 3)
+    }
+
+    func testWeekNumberCapsAtTheLastWeekAndNeverDropsBelowOne() throws {
+        let cal = try utcCalendar()
+        let created = try day(2026, 4, 15, cal)
+        let plan = makePlan(workoutWeekdays: [1], createdAt: created)
+
+        let longAfter = try PlanDayPicker.weekNumber(
+            of: plan, on: day(2026, 9, 1, cal), calendar: cal
+        )
+        let before = try PlanDayPicker.weekNumber(
+            of: plan, on: day(2026, 4, 1, cal), calendar: cal
+        )
+
+        XCTAssertEqual(longAfter, 4)
+        XCTAssertEqual(before, 1)
+    }
+
+    private func utcCalendar() throws -> Calendar {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = try XCTUnwrap(TimeZone(identifier: "UTC"))
+        return cal
+    }
+
+    private func day(_ y: Int, _ m: Int, _ d: Int, _ cal: Calendar) throws -> Date {
+        let comps = DateComponents(year: y, month: m, day: d, hour: 9)
+        return try XCTUnwrap(cal.date(from: comps))
     }
 
     func testReturnsNilWhenPlanHasNoNonRestDays() {
         let plan = makePlan(workoutWeekdays: [])
-        XCTAssertNil(PlanDayPicker.dayForToday(in: plan, weekdayMondayFirst: 3))
+        XCTAssertNil(PlanDayPicker.dayForToday(
+            in: plan, weekNumber: 1, weekdayMondayFirst: 3
+        ))
     }
 
     func testReturnsNilWhenPlanIsNil() {
-        XCTAssertNil(PlanDayPicker.dayForToday(in: nil, weekdayMondayFirst: 3))
+        XCTAssertNil(PlanDayPicker.dayForToday(
+            in: nil, weekNumber: 1, weekdayMondayFirst: 3
+        ))
     }
 
     func testClampsOutOfRangeWeekdays() {
         let plan = makePlan(workoutWeekdays: [1])
         // weekdayMondayFirst=0 is invalid → clamp to 1. Should match day 1.
         XCTAssertEqual(
-            PlanDayPicker.dayForToday(in: plan, weekdayMondayFirst: 0)?.dayOfWeek,
+            PlanDayPicker.dayForToday(
+                in: plan, weekNumber: 1, weekdayMondayFirst: 0
+            )?.dayOfWeek,
             1
         )
         // weekdayMondayFirst=99 is invalid → clamp to 7. No match, so fallback.
         XCTAssertEqual(
-            PlanDayPicker.dayForToday(in: plan, weekdayMondayFirst: 99)?.dayOfWeek,
+            PlanDayPicker.dayForToday(
+                in: plan, weekNumber: 1, weekdayMondayFirst: 99
+            )?.dayOfWeek,
             1
         )
     }
