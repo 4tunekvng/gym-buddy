@@ -168,7 +168,7 @@ struct TodayView: View {
         let recent = (try? await composition.sessionRepo.recent(limit: 100)) ?? []
         await MainActor.run {
             userName = profile?.displayName ?? ""
-            let day = Self.pickTodayPlanDay(from: plan)
+            let day = Self.pickTodayPlanDay(from: plan, hasTrained: !recent.isEmpty)
             todayExercises = day?.exercises ?? []
             greeting = buildGreeting(profile: profile, day: day, recentSessions: recent.count)
             recentSessionCount = recent.count
@@ -178,12 +178,13 @@ struct TodayView: View {
     /// Pick the right plan day for today. Delegates to the domain-layer
     /// `PlanDayPicker` so the logic is covered by Swift-package tests and
     /// shared across CLI / preview / iOS app.
-    static func pickTodayPlanDay(from plan: Plan?) -> PlanDay? {
+    static func pickTodayPlanDay(from plan: Plan?, hasTrained: Bool) -> PlanDay? {
         guard let plan else { return nil }
         return PlanDayPicker.dayForToday(
             in: plan,
             weekNumber: PlanDayPicker.weekNumber(of: plan),
-            weekdayMondayFirst: PlanDayPicker.mondayFirstWeekday()
+            weekdayMondayFirst: PlanDayPicker.mondayFirstWeekday(),
+            hasTrained: hasTrained
         )
     }
 

@@ -30,16 +30,27 @@ final class PlanDayPickerTests: XCTestCase {
         let plan = makePlan(workoutWeekdays: [1, 3, 5])
         // Today is Wednesday (3).
         let day = PlanDayPicker.dayForToday(
-            in: plan, weekNumber: 1, weekdayMondayFirst: 3
+            in: plan, weekNumber: 1, weekdayMondayFirst: 3, hasTrained: false
         )
         XCTAssertEqual(day?.dayOfWeek, 3)
     }
 
-    func testFallsBackToFirstNonRestDayIfNoExactMatch() {
+    func testRestDayIsRestOnceTheUserHasTrained() {
+        let plan = makePlan(workoutWeekdays: [1, 3, 5])
+
+        // Today is Tuesday (2), a rest day.
+        let day = PlanDayPicker.dayForToday(
+            in: plan, weekNumber: 1, weekdayMondayFirst: 2, hasTrained: true
+        )
+
+        XCTAssertNil(day)
+    }
+
+    func testNewUserOnARestDayGetsTheFirstWorkout() {
         let plan = makePlan(workoutWeekdays: [1, 3, 5])
         // Today is Tuesday (2) — not in the plan.
         let day = PlanDayPicker.dayForToday(
-            in: plan, weekNumber: 1, weekdayMondayFirst: 2
+            in: plan, weekNumber: 1, weekdayMondayFirst: 2, hasTrained: false
         )
         XCTAssertEqual(day?.dayOfWeek, 1, "Expected fallback to Monday since Tuesday is a rest day")
     }
@@ -48,7 +59,7 @@ final class PlanDayPickerTests: XCTestCase {
         let plan = makePlan(workoutWeekdays: [1, 3, 5])
 
         let day = PlanDayPicker.dayForToday(
-            in: plan, weekNumber: 3, weekdayMondayFirst: 3
+            in: plan, weekNumber: 3, weekdayMondayFirst: 3, hasTrained: false
         )
 
         XCTAssertEqual(day?.weekNumber, 3)
@@ -59,7 +70,7 @@ final class PlanDayPickerTests: XCTestCase {
         let plan = makePlan(workoutWeekdays: [1, 3, 5])
 
         let day = PlanDayPicker.dayForToday(
-            in: plan, weekNumber: 2, weekdayMondayFirst: 2
+            in: plan, weekNumber: 2, weekdayMondayFirst: 2, hasTrained: false
         )
 
         XCTAssertEqual(day?.weekNumber, 2)
@@ -120,13 +131,13 @@ final class PlanDayPickerTests: XCTestCase {
     func testReturnsNilWhenPlanHasNoNonRestDays() {
         let plan = makePlan(workoutWeekdays: [])
         XCTAssertNil(PlanDayPicker.dayForToday(
-            in: plan, weekNumber: 1, weekdayMondayFirst: 3
+            in: plan, weekNumber: 1, weekdayMondayFirst: 3, hasTrained: false
         ))
     }
 
     func testReturnsNilWhenPlanIsNil() {
         XCTAssertNil(PlanDayPicker.dayForToday(
-            in: nil, weekNumber: 1, weekdayMondayFirst: 3
+            in: nil, weekNumber: 1, weekdayMondayFirst: 3, hasTrained: false
         ))
     }
 
@@ -135,14 +146,14 @@ final class PlanDayPickerTests: XCTestCase {
         // weekdayMondayFirst=0 is invalid → clamp to 1. Should match day 1.
         XCTAssertEqual(
             PlanDayPicker.dayForToday(
-                in: plan, weekNumber: 1, weekdayMondayFirst: 0
+                in: plan, weekNumber: 1, weekdayMondayFirst: 0, hasTrained: false
             )?.dayOfWeek,
             1
         )
         // weekdayMondayFirst=99 is invalid → clamp to 7. No match, so fallback.
         XCTAssertEqual(
             PlanDayPicker.dayForToday(
-                in: plan, weekNumber: 1, weekdayMondayFirst: 99
+                in: plan, weekNumber: 1, weekdayMondayFirst: 99, hasTrained: false
             )?.dayOfWeek,
             1
         )
