@@ -53,7 +53,7 @@ public struct PlanGenerator: Sendable {
         let baseReps = baseReps(for: inputs)
         let sets = baseSets(for: inputs)
         let daysPerWeek = clamp(inputs.sessionsPerWeek, to: 2...5)
-        let workoutDays: [Int] = distribute(daysPerWeek, over: 7)
+        let workoutDays: [Int] = Self.workoutDaysBySessions[daysPerWeek] ?? []
         let exercises = orderedExercises(for: inputs)
 
         var weeks: [PlanWeek] = []
@@ -123,12 +123,15 @@ public struct PlanGenerator: Sendable {
         return base
     }
 
-    private func distribute(_ days: Int, over week: Int) -> [Int] {
-        // Evenly distribute workout days. 3/week → M, W, F. 4/week → M, Tu, Th, Sa. etc.
-        guard days > 0 else { return [] }
-        let spacing = Double(week) / Double(days)
-        return (0..<days).map { Int(round(Double($0) * spacing)) + 1 }.map { min($0, 7) }
-    }
+    /// Workout days (1 = Monday) for each sessions-a-week count. A table, not a
+    /// formula: rounding i * 7 / n gave Mon/Wed/Sat for 3 and put Friday and
+    /// Saturday back to back for 4.
+    private static let workoutDaysBySessions: [Int: [Int]] = [
+        2: [1, 5],          // Mon, Fri
+        3: [1, 3, 5],       // Mon, Wed, Fri
+        4: [1, 2, 4, 6],    // Mon, Tue, Thu, Sat
+        5: [1, 2, 4, 5, 7]  // Mon, Tue, Thu, Fri, Sun
+    ]
 
     private func rationaleString(for inputs: Inputs) -> String {
         "Linear progression plan: \(inputs.sessionsPerWeek) days/week, \(inputs.goal.rawValue) focus, scaled for \(inputs.experience.rawValue). Adds 1 rep per set per week over 4 weeks."
