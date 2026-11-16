@@ -8,20 +8,17 @@ import Foundation
 public struct LLMConfiguration: Equatable, Sendable {
     public let modelId: String
     public let maxTokensDefault: Int
-    public let temperatureDefault: Double
     public let requestTimeout: TimeInterval
     public let streamingEnabled: Bool
 
     public init(
         modelId: String = "claude-opus-5-5",
         maxTokensDefault: Int = 400,
-        temperatureDefault: Double = 0.6,
         requestTimeout: TimeInterval = 30,
         streamingEnabled: Bool = true
     ) {
         self.modelId = modelId
         self.maxTokensDefault = maxTokensDefault
-        self.temperatureDefault = temperatureDefault
         self.requestTimeout = requestTimeout
         self.streamingEnabled = streamingEnabled
     }

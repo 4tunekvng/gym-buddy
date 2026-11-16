@@ -30,7 +30,6 @@ public struct MemoryExtractor: Sendable {
             promptVersion: rendered.version,
             system: rendered.system,
             user: rendered.user,
-            temperature: 0.0,
             maxTokens: 2048
         )
         let response = try await client.complete(request: request)
