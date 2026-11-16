@@ -130,7 +130,7 @@ public struct PlanGenerator: Sendable {
         2: [1, 5],          // Mon, Fri
         3: [1, 3, 5],       // Mon, Wed, Fri
         4: [1, 2, 4, 6],    // Mon, Tue, Thu, Sat
-        5: [1, 2, 4, 5, 7], // Mon, Tue, Thu, Fri, Sun
+        5: [1, 2, 4, 5, 7]  // Mon, Tue, Thu, Fri, Sun
     ]
 
     private func rationaleString(for inputs: Inputs) -> String {
