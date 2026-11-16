@@ -64,6 +64,40 @@ final class PlanGeneratorTests: XCTestCase {
         XCTAssertEqual(workoutDays, 3)
     }
 
+    func testThreeSessionsFallOnMondayWednesdayFriday() {
+        // Arrange
+        let inputs = PlanGenerator.Inputs(
+            goal: .hypertrophy,
+            experience: .intermediate,
+            equipment: .dumbbells,
+            sessionsPerWeek: 3
+        )
+
+        // Act
+        let plan = PlanGenerator().generate(from: inputs)
+
+        // Assert
+        let days = plan.weeks[0].days.filter { !$0.isRestDay }.map(\.dayOfWeek)
+        XCTAssertEqual(days, [1, 3, 5])
+    }
+
+    func testFourSessionsHaveNoBackToBackFridaySaturday() {
+        // Arrange
+        let inputs = PlanGenerator.Inputs(
+            goal: .hypertrophy,
+            experience: .intermediate,
+            equipment: .dumbbells,
+            sessionsPerWeek: 4
+        )
+
+        // Act
+        let plan = PlanGenerator().generate(from: inputs)
+
+        // Assert
+        let days = plan.weeks[0].days.filter { !$0.isRestDay }.map(\.dayOfWeek)
+        XCTAssertEqual(days, [1, 2, 4, 6])
+    }
+
     func testRationaleStringDescribesInputs() {
         let gen = PlanGenerator()
         let inputs = PlanGenerator.Inputs(
