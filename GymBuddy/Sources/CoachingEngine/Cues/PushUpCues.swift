@@ -4,7 +4,7 @@ import Foundation
 ///
 /// Sources: NSCA Essentials of Strength & Conditioning, 4e, Ch 15. S&C literature
 /// on bodyweight pressing patterns. Each cue has positive/negative fixtures in
-/// Tests/CoachingEngineTests/Fixtures/pushup/.
+/// Tests/CoachingEngineTests/Cues/PushUpCuesFixtureTests.swift.
 public enum PushUpCues {
     public static var all: [CueEvaluator] {
         [HipSag(), HipPike(), ElbowFlare(),

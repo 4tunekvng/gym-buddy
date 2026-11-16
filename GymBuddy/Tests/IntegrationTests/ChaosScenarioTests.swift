@@ -6,9 +6,8 @@ import XCTest
 
 /// Chaos scenarios from PRD §10.7. Each either resumes correctly or fails with
 /// a clear user-visible explanation. Here we test the domain-visible surface
-/// (what the engine sees); iOS-specific chaos (actual incoming calls, route
-/// changes, permission revocation) is verified by the XCUITest suite in
-/// GymBuddyApp and documented in docs/Chaos.md.
+/// (what the engine sees). iOS-side chaos (backgrounding, rapid input) lives in
+/// App/GymBuddyAppUITests/ChaosUITest.swift.
 final class ChaosScenarioTests: XCTestCase {
 
     func testPainDetectedMidSetStopsTheSession() async throws {
