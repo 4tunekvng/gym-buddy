@@ -86,4 +86,25 @@ final class PushUpRepDetectorTests: XCTestCase {
         XCTAssertEqual(d.phase, .idle)
         XCTAssertEqual(d.currentRepNumber, 0)
     }
+
+    /// A shallow push-up (down to 130°, back up) then a full one starting at
+    /// 1.0 s: the shallow one is dropped and the full rep is timed from its own
+    /// start.
+    func testShallowDipIsDroppedAndDoesNotStretchTheNextRep() throws {
+        let d = PushUpRepDetector()
+        let shallow: [Double] = [170, 145, 130, 145, 170, 170]
+        let full: [Double] = [145, 120, 95, 95, 115, 140, 170]
+        let angles = shallow + full
+        let times = shallow.indices.map { Double($0) * 0.1 }
+            + full.indices.map { 1.0 + Double($0) * 0.1 }
+
+        let events = zip(angles, times).compactMap {
+            d.observe(sample(elbowDegrees: $0, t: $1))
+        }
+
+        XCTAssertEqual(events.count, 1)
+        let rep = try XCTUnwrap(events.first)
+        XCTAssertEqual(rep.startedAt, 1.0, accuracy: 0.001)
+        XCTAssertEqual(rep.eccentricDuration, 0.2, accuracy: 0.001)
+    }
 }

@@ -49,6 +49,8 @@ public final class GobletSquatRepDetector: RepDetector, @unchecked Sendable {
             if kneeAngle < tuning.repAtBottom {
                 bottomTimestamp = sample.timestamp
                 phase = .bottom
+            } else if kneeAngle > tuning.repAtTop {
+                abandonRep()
             }
         case .bottom:
             if kneeAngle > tuning.repExitingBottom {
@@ -60,6 +62,16 @@ public final class GobletSquatRepDetector: RepDetector, @unchecked Sendable {
             }
         }
         return nil
+    }
+
+    /// Back at the top without reaching the bottom: a shallow dip, not a rep.
+    /// Drop it and restart the timer, so the next rep's lowering time doesn't
+    /// include the dip and the pause after it.
+    private func abandonRep() {
+        repStartTimestamp = nil
+        maxHipY = -.infinity
+        minHipY = .infinity
+        phase = .top
     }
 
     private func finishRep(at timestamp: TimeInterval) -> RepEvent {

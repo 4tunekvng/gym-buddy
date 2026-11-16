@@ -84,4 +84,24 @@ final class GobletSquatRepDetectorTests: XCTestCase {
 
         XCTAssertEqual(events.map(\.repNumber), [1, 2, 3])
     }
+
+    /// A half squat (down to 130°, back up) then a full squat starting at 1.0 s:
+    /// the half squat is dropped and the full rep is timed from its own start.
+    func testShallowDipIsDroppedAndDoesNotStretchTheNextRep() throws {
+        let d = GobletSquatRepDetector()
+        let shallow: [Double] = [170, 150, 130, 150, 170, 170]
+        let full: [Double] = [150, 120, 90, 80, 80, 100, 130, 150, 170]
+        let angles = shallow + full
+        let times = shallow.indices.map { Double($0) * 0.1 }
+            + full.indices.map { 1.0 + Double($0) * 0.1 }
+
+        let events = zip(angles, times).compactMap {
+            d.observe(sample(kneeDegrees: $0, t: $1))
+        }
+
+        XCTAssertEqual(events.count, 1)
+        let rep = try XCTUnwrap(events.first)
+        XCTAssertEqual(rep.startedAt, 1.0, accuracy: 0.001)
+        XCTAssertEqual(rep.eccentricDuration, 0.3, accuracy: 0.001)
+    }
 }
