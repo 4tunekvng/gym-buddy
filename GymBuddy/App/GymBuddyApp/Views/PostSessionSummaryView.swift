@@ -120,7 +120,6 @@ struct PostSessionSummaryView: View {
             promptVersion: rendered.version,
             system: rendered.system,
             user: rendered.user,
-            temperature: 0.6,
             maxTokens: 200
         )
         do {

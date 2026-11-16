@@ -52,14 +52,9 @@ public final class AnthropicClient: LLMClientProtocol, @unchecked Sendable {
         urlRequest.addValue("application/json", forHTTPHeaderField: "content-type")
         urlRequest.addValue("prompt-caching-2024-07-31", forHTTPHeaderField: "anthropic-beta")
 
-        let payload = AnthropicRequestPayload(
-            model: configuration.modelId,
-            system: [.init(text: request.system)],
-            max_tokens: request.maxTokens,
-            temperature: request.temperature,
-            messages: [.init(role: "user", content: request.user)]
+        urlRequest.httpBody = try Self.body(
+            for: request, modelId: configuration.modelId
         )
-        urlRequest.httpBody = try JSONEncoder().encode(payload)
 
         let (data, response) = try await urlSession.data(for: urlRequest)
         guard let http = response as? HTTPURLResponse else {
@@ -70,6 +65,19 @@ public final class AnthropicClient: LLMClientProtocol, @unchecked Sendable {
             throw LLMClientError.networkFailure("status_\(http.statusCode)")
         }
         return try Self.response(from: data)
+    }
+
+    /// Encode a Messages API request. No temperature, top_p or top_k: Claude
+    /// 4.7 and later models reject any non-default value with a 400, and API
+    /// version 2026-10-21 rejects them even at the defaults
+    /// (https://platform.claude.com/docs/en/api/migration-2026-10-21).
+    static func body(for request: LLMRequest, modelId: String) throws -> Data {
+        try JSONEncoder().encode(AnthropicRequestPayload(
+            model: modelId,
+            system: [.init(text: request.system)],
+            max_tokens: request.maxTokens,
+            messages: [.init(role: "user", content: request.user)]
+        ))
     }
 
     /// Decode a Messages API body. `input_tokens` counts only the uncached part
@@ -112,7 +120,6 @@ private struct AnthropicRequestPayload: Encodable {
     let model: String
     let system: [SystemBlock]
     let max_tokens: Int
-    let temperature: Double
     let messages: [Message]
 
     struct SystemBlock: Encodable {

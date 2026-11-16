@@ -20,7 +20,6 @@ public struct LLMRequest: Equatable, Sendable {
     public let promptVersion: Int
     public let system: String
     public let user: String
-    public let temperature: Double
     public let maxTokens: Int
 
     public init(
@@ -28,14 +27,12 @@ public struct LLMRequest: Equatable, Sendable {
         promptVersion: Int,
         system: String,
         user: String,
-        temperature: Double = 0.6,
         maxTokens: Int = 400
     ) {
         self.promptId = promptId
         self.promptVersion = promptVersion
         self.system = system
         self.user = user
-        self.temperature = temperature
         self.maxTokens = maxTokens
     }
 }
