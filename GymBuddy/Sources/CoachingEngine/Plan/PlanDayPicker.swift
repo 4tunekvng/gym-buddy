@@ -6,9 +6,9 @@ import Foundation
 /// order, so each week's progression reaches the user):
 ///   1. Exact match: the first non-rest day whose `dayOfWeek` equals today's
 ///      weekday (1=Monday).
-///   2. Fallback: the first non-rest day in any week, so a new user who starts
-///      mid-week still sees something actionable.
-///   3. Nil when the plan has no non-rest days at all (every day is rest).
+///   2. Fallback, for a user with no sessions yet: the first non-rest day in
+///      any week, so someone who starts mid-week still has a workout.
+///   3. Otherwise nil: today is a rest day (or every day is rest).
 ///
 /// Lives in the domain layer so both the iOS view layer and the CLI / tests
 /// can share the same logic. Weekday input is explicit (1-based, Monday=1)
@@ -19,10 +19,13 @@ public enum PlanDayPicker {
     ///   - weekNumber: the plan week the user is in, from
     ///     `weekNumber(of:on:calendar:)`.
     ///   - weekdayMondayFirst: 1 = Monday, 7 = Sunday.
+    ///   - hasTrained: whether the user has logged any session. Only a user who
+    ///     hasn't gets a workout on a rest day.
     public static func dayForToday(
         in plan: Plan?,
         weekNumber: Int,
-        weekdayMondayFirst: Int
+        weekdayMondayFirst: Int,
+        hasTrained: Bool
     ) -> PlanDay? {
         guard let plan else { return nil }
         let weekday = max(1, min(7, weekdayMondayFirst))
@@ -33,6 +36,7 @@ public enum PlanDayPicker {
                 return day
             }
         }
+        if hasTrained { return nil }
         for week in weeks {
             if let day = week.days.first(where: { !$0.isRestDay }) {
                 return day
