@@ -71,6 +71,8 @@ public final class DumbbellRowRepDetector: RepDetector, @unchecked Sendable {
             if elbowAngle < tuning.repAtBottom {
                 pullTopTimestamp = sample.timestamp
                 phase = .bottom
+            } else if elbowAngle > tuning.repAtTop {
+                abandonRep()
             }
         case .bottom:
             if elbowAngle > tuning.repExitingBottom {
@@ -127,6 +129,16 @@ public final class DumbbellRowRepDetector: RepDetector, @unchecked Sendable {
 
     private func wrist(sample: PoseSample, side: Side) -> Keypoint? {
         sample[side == .left ? .leftWrist : .rightWrist]
+    }
+
+    /// Arm extended again without reaching the top of the pull: a short tug,
+    /// not a rep. Drop it and restart the timer, so the next rep's times don't
+    /// include the tug and the pause after it.
+    private func abandonRep() {
+        repStartTimestamp = nil
+        maxWristY = -.infinity
+        minWristY = .infinity
+        phase = .top
     }
 
     private func finishRep(at timestamp: TimeInterval) -> RepEvent {

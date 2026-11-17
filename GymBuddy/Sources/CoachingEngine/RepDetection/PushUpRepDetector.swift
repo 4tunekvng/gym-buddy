@@ -66,6 +66,8 @@ public final class PushUpRepDetector: RepDetector, @unchecked Sendable {
             if elbowAngle < tuning.repAtBottom {
                 bottomTimestamp = sample.timestamp
                 enter(.bottom, at: sample.timestamp)
+            } else if elbowAngle > tuning.repAtTop {
+                abandonRep(at: sample.timestamp)
             }
         case .bottom:
             if elbowAngle > tuning.repExitingBottom {
@@ -82,6 +84,16 @@ public final class PushUpRepDetector: RepDetector, @unchecked Sendable {
     private func enter(_ newPhase: RepPhase, at timestamp: TimeInterval) {
         phase = newPhase
         phaseEnteredAt = timestamp
+    }
+
+    /// Back at the top without reaching the bottom: a shallow dip, not a rep.
+    /// Drop it and restart the timer, so the next rep's lowering time doesn't
+    /// include the dip and the pause after it.
+    private func abandonRep(at timestamp: TimeInterval) {
+        repStartTimestamp = nil
+        maxShoulderY = -.infinity
+        minShoulderY = .infinity
+        enter(.top, at: timestamp)
     }
 
     private func finishRep(at timestamp: TimeInterval) -> RepEvent {

@@ -132,4 +132,29 @@ final class DumbbellRowRepDetectorTests: XCTestCase {
         let numbers = events.map(\.repNumber)
         XCTAssertEqual(numbers, Array(1...numbers.count))
     }
+
+    /// After side detection, a short tug (to 120°, back to 170°) then a full
+    /// pull starting at 3.0 s: the tug is dropped and the full rep is timed
+    /// from its own start.
+    func testShortTugIsDroppedAndDoesNotStretchTheNextRep() throws {
+        let d = DumbbellRowRepDetector()
+        let warmup: [Double] = [
+            170, 168, 170, 166, 170, 168, 170, 166, 170, 168, 170, 170
+        ]
+        let tug: [Double] = [140, 120, 140, 170, 170]
+        let full: [Double] = [140, 110, 80, 80, 100, 120, 140, 160, 170]
+        let angles = warmup + tug + full
+        let times = warmup.indices.map { Double($0) * 0.1 }
+            + tug.indices.map { 2.0 + Double($0) * 0.1 }
+            + full.indices.map { 3.0 + Double($0) * 0.1 }
+
+        let events = zip(angles, times).compactMap {
+            d.observe(sample(side: .right, elbowDegrees: $0, t: $1))
+        }
+
+        XCTAssertEqual(events.count, 1)
+        let rep = try XCTUnwrap(events.first)
+        XCTAssertEqual(rep.startedAt, 3.0, accuracy: 0.001)
+        XCTAssertEqual(rep.concentricDuration, 0.2, accuracy: 0.001)
+    }
 }
