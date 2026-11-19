@@ -67,6 +67,15 @@ final class AppComposition: ObservableObject {
     static func makeProduction() -> AppComposition {
         let container = Self.openContainer()
         let runtimeConfig = AppRuntimeConfiguration.current()
+        if runtimeConfig.resetsStore {
+            // Same policy as `openContainer`: a UI test on stale data would
+            // pass or fail for the wrong reason, so stop loudly instead.
+            do {
+                try GymBuddyStore.eraseAll(in: container)
+            } catch {
+                fatalError("Could not reset the store for UI tests: \(error)")
+            }
+        }
 
         let userRepo = SwiftDataUserProfileRepository(container: container)
         let planRepo = SwiftDataPlanRepository(container: container)
@@ -189,7 +198,9 @@ final class AppComposition: ObservableObject {
                 voiceMode: .mock,
                 anthropicAPIKey: nil,
                 anthropicBaseURL: nil,
-                scriptedDemoPlaybackRate: 1.0
+                scriptedDemoPlaybackRate: 1.0,
+                fixedToday: nil,
+                resetsStore: false
             ),
             runtimeStatus: AppRuntimeStatus(
                 pose: .scriptedDemoForced,

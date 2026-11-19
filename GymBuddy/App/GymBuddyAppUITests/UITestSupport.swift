@@ -2,24 +2,37 @@ import XCTest
 
 /// Shared helpers for UI tests.
 ///
-/// iOS Simulator preserves the app's SwiftData store across test invocations —
-/// once a test onboards, subsequent tests launch straight to Today. These
-/// helpers make each test tolerant of either starting point.
+/// iOS Simulator keeps the app's SwiftData store between tests, and the Today
+/// screen depends on the weekday. `launchFresh` empties the store and every
+/// launch pins "today", so each test starts the same way on any day.
 enum UITestSupport {
+
+    /// A Monday. Every generated plan trains on Monday
+    /// (`PlanGenerator.workoutDaysBySessions`), so Today always has a workout.
+    static let fixedToday = "2026-11-16"
 
     static func configureForScriptedDemo(_ app: XCUIApplication) {
         app.launchEnvironment["GYMBUDDY_POSE_MODE"] = "demo"
         app.launchEnvironment["GYMBUDDY_LLM_MODE"] = "mock"
         app.launchEnvironment["GYMBUDDY_VOICE_MODE"] = "mock"
         app.launchEnvironment["GYMBUDDY_SCRIPTED_DEMO_PLAYBACK_RATE"] = "3.0"
+        app.launchEnvironment["GYMBUDDY_TODAY"] = fixedToday
+    }
+
+    /// First launch of a test: an empty store, as on a fresh install. Later
+    /// launches in the same test keep their data, so relaunch tests still work.
+    static func launchFresh(_ app: XCUIApplication) {
+        configureForScriptedDemo(app)
+        app.launchEnvironment["GYMBUDDY_RESET_STORE"] = "1"
+        app.launch()
+        app.launchEnvironment["GYMBUDDY_RESET_STORE"] = nil
     }
 
     /// Launch the app and ensure we end on the Today screen with a profile.
     /// If the app shows Welcome, runs through onboarding with a generic name.
     @discardableResult
     static func launchAndReachTodayScreen(_ app: XCUIApplication, name: String = "QA") -> Bool {
-        configureForScriptedDemo(app)
-        app.launch()
+        launchFresh(app)
 
         let welcome = app.buttons["welcome_start_button"]
         if welcome.waitForExistence(timeout: 3) {

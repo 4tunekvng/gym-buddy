@@ -24,12 +24,26 @@ struct AppRuntimeConfiguration: Equatable {
     let anthropicAPIKey: String?
     let anthropicBaseURL: String?
     let scriptedDemoPlaybackRate: Double
+    /// Debug builds only: the calendar day the app treats as today, so UI
+    /// tests see the same planned workout whatever day they run on.
+    let fixedToday: Date?
+    /// Debug builds only: start from an empty store, like a fresh install.
+    let resetsStore: Bool
+
+    var today: Date { fixedToday ?? Date() }
 
     static func current(
         environment: [String: String] = ProcessInfo.processInfo.environment,
         infoDictionary: [String: Any] = Bundle.main.infoDictionary ?? [:]
     ) -> AppRuntimeConfiguration {
-        AppRuntimeConfiguration(
+        #if DEBUG
+        let fixedToday = dayValue(environment["GYMBUDDY_TODAY"])
+        let resetsStore = environment["GYMBUDDY_RESET_STORE"] == "1"
+        #else
+        let fixedToday: Date? = nil
+        let resetsStore = false
+        #endif
+        return AppRuntimeConfiguration(
             poseMode: PoseMode(rawValue: normalizedValue(
                 environment["GYMBUDDY_POSE_MODE"] ??
                     stringValue(infoDictionary["GYMBUDDY_POSE_MODE"])
@@ -54,7 +68,9 @@ struct AppRuntimeConfiguration: Equatable {
             scriptedDemoPlaybackRate: playbackRateValue(
                 environment["GYMBUDDY_SCRIPTED_DEMO_PLAYBACK_RATE"] ??
                     stringValue(infoDictionary["GYMBUDDY_SCRIPTED_DEMO_PLAYBACK_RATE"])
-            )
+            ),
+            fixedToday: fixedToday,
+            resetsStore: resetsStore
         )
     }
 
@@ -85,6 +101,15 @@ struct AppRuntimeConfiguration: Equatable {
             return 1.0
         }
         return parsed
+    }
+
+    /// Parses a `yyyy-MM-dd` day as local midnight; anything else is nil.
+    private static func dayValue(_ value: String?) -> Date? {
+        guard let value else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: value.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 }
 

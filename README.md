@@ -63,7 +63,6 @@ If you only take three things from this package, take these:
 **Chapter 1 foundation implemented.** Swift packages compile-ready; unit + property + integration + chaos + hero-moment + LLM-eval test suites in place; iOS app SwiftUI views implemented; ADRs recorded for all seven open decisions.
 
 **Still to do before TestFlight (per `docs/MILESTONES.md`):**
-- Xcode project scaffolding (`App/GymBuddyApp.xcodeproj` — to be generated via Tuist or XcodeGen) and wiring the iOS target against the SwiftPM libraries.
 - TTS cache generation pipeline (M3): produce the Tier-1 phrase variants and commit the audio assets.
 - Real pose-fixture corpus recorded from devices (M2 exit bar).
 - On-device latency benchmark harness for the in-set cue path.
