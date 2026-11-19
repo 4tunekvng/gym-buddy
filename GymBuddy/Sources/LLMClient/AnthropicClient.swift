@@ -41,19 +41,10 @@ public final class AnthropicClient: LLMClientProtocol, @unchecked Sendable {
     }
 
     public func complete(request: LLMRequest) async throws -> LLMResponse {
-        let endpoint = credentials.baseURL ?? Self.defaultBaseURL
-        var urlRequest = URLRequest(
-            url: endpoint,
-            timeoutInterval: configuration.requestTimeout
-        )
-        urlRequest.httpMethod = "POST"
-        urlRequest.addValue(credentials.apiKey, forHTTPHeaderField: "x-api-key")
-        urlRequest.addValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        urlRequest.addValue("application/json", forHTTPHeaderField: "content-type")
-        urlRequest.addValue("prompt-caching-2024-07-31", forHTTPHeaderField: "anthropic-beta")
-
-        urlRequest.httpBody = try Self.body(
-            for: request, modelId: configuration.modelId
+        let urlRequest = try Self.urlRequest(
+            for: request,
+            configuration: configuration,
+            credentials: credentials
         )
 
         let (data, response) = try await urlSession.data(for: urlRequest)
@@ -65,6 +56,39 @@ public final class AnthropicClient: LLMClientProtocol, @unchecked Sendable {
             throw LLMClientError.networkFailure("status_\(http.statusCode)")
         }
         return try Self.response(from: data)
+    }
+
+    static func endpoint(for baseURL: URL?) -> URL {
+        guard let baseURL else { return defaultBaseURL }
+        let path = baseURL.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if path.hasSuffix("v1/messages") {
+            return baseURL
+        }
+        return baseURL.appendingPathComponent("v1").appendingPathComponent("messages")
+    }
+
+    static func urlRequest(
+        for request: LLMRequest,
+        configuration: LLMConfiguration,
+        credentials: Credentials
+    ) throws -> URLRequest {
+        let endpoint = Self.endpoint(for: credentials.baseURL)
+        var urlRequest = URLRequest(
+            url: endpoint,
+            timeoutInterval: configuration.requestTimeout
+        )
+        urlRequest.httpMethod = "POST"
+        urlRequest.addValue(
+            "Bearer \(credentials.apiKey)",
+            forHTTPHeaderField: "Authorization"
+        )
+        urlRequest.addValue("2026-10-21", forHTTPHeaderField: "anthropic-version")
+        urlRequest.addValue("application/json", forHTTPHeaderField: "content-type")
+        urlRequest.addValue("prompt-caching-2024-07-31", forHTTPHeaderField: "anthropic-beta")
+        urlRequest.httpBody = try Self.body(
+            for: request, modelId: configuration.modelId
+        )
+        return urlRequest
     }
 
     /// Encode a Messages API request. No temperature, top_p or top_k: Claude
