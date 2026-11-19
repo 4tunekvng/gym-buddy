@@ -40,11 +40,14 @@ public struct PainDetector: Sendable {
     public init() {}
 
     /// Returns the matching pain phrase if the transcript contains pain language
-    /// and the negated-context check passes. Otherwise nil.
+    /// outside a negated context. Otherwise nil.
     public func detect(in transcript: String) -> String? {
-        let lower = transcript.lowercased()
-        for neg in Self.negatedContexts where lower.contains(neg) {
-            return nil
+        // Blank out each negated phrase instead of giving up on the whole
+        // transcript, so "no pain in my knee but a sharp pain in my shoulder"
+        // still stops the set. Longest first: "no sharp pain" before "no pain".
+        var lower = transcript.lowercased()
+        for neg in Self.negatedContexts.sorted(by: { $0.count > $1.count }) {
+            lower = lower.replacingOccurrences(of: neg, with: " ")
         }
         for phrase in Self.painPhrases where lower.contains(phrase) {
             return phrase

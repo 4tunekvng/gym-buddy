@@ -27,6 +27,22 @@ final class PainDetectorTests: XCTestCase {
         XCTAssertNil(detector.detect(in: "nothing is hurting"))
     }
 
+    func testNegationOfOneSpotDoesNotHidePainInAnother() {
+        let transcript = "no pain in my knee but I felt a sharp pain in my shoulder"
+
+        let trigger = detector.detect(in: transcript)
+
+        XCTAssertEqual(trigger, "sharp pain")
+    }
+
+    func testEarlierNegationDoesNotHideNewPain() {
+        let transcript = "it didn't hurt before but now something popped"
+
+        let trigger = detector.detect(in: transcript)
+
+        XCTAssertEqual(trigger, "something popped")
+    }
+
     func testCasesInsensitive() {
         XCTAssertNotNil(detector.detect(in: "SHARP PAIN RIGHT NOW"))
     }
