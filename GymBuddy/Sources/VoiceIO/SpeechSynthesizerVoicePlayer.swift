@@ -80,7 +80,7 @@ public final class SpeechSynthesizerVoicePlayer: NSObject, VoicePlaying {
             try session.setCategory(
                 .playAndRecord,
                 mode: .voiceChat,
-                options: [.mixWithOthers, .duckOthers, .defaultToSpeaker, .allowBluetoothA2DP, .allowBluetoothHFP]
+                options: [.mixWithOthers, .duckOthers, .defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP]
             )
             try session.setActive(true, options: [])
         } catch {
