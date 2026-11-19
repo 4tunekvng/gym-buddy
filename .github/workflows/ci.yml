@@ -47,7 +47,6 @@ jobs:
         # failing xcodebuild fails the step even when piped through xcpretty.
         shell: bash
     env:
-      DESTINATION: platform=iOS Simulator,name=iPhone 16,OS=18.5
       # Pinned like SwiftLint below: an unpinned `brew install` would take
       # whatever release landed that day and could change the project.
       XCODEGEN_VERSION: 2.45.4
@@ -66,6 +65,26 @@ jobs:
         run: |
           xcodegen --version
           xcodegen generate --spec project.yml
+      - name: Pick an iOS 18 iPhone simulator
+        # Runner images differ in which simulators they ship: on 2026-11-19
+        # the arm64 image had no "iPhone 16, iOS 18.5", so a hard-coded
+        # destination failed before compiling. Prefer that device, else take
+        # any iPhone on an iOS 18 runtime, and name it by its id.
+        run: |
+          udid=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          picks = [(d["name"] != "iPhone 16", rt, d["udid"])
+                   for rt, ds in devices.items() if ".iOS-18-" in rt
+                   for d in ds if d["name"].startswith("iPhone")]
+          print(min(picks)[2] if picks else "")')
+          if [ -z "$udid" ]; then
+            xcrun simctl list runtimes
+            echo "::error::No iPhone simulator on an iOS 18 runtime"
+            exit 1
+          fi
+          xcrun simctl list devices | grep "$udid"
+          echo "DESTINATION=platform=iOS Simulator,id=$udid" >> "$GITHUB_ENV"
       - name: Build for iOS simulator
         run: |
           set -o pipefail
