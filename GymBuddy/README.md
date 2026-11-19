@@ -13,7 +13,7 @@ This directory (`GymBuddy/`) is the Swift Package workspace + the iOS app target
 
 ## Clone and run in under 10 minutes
 
-1. **Requirements**: macOS with full Xcode (not just Command Line Tools), **Xcode 15.4+** — Swift 5.10 / iOS 17 SDK. CI gates on Xcode 15.4 (the floor); the repo also builds on Xcode 16/26 (verified locally on 26.4). `xcodegen` for regenerating the iOS app project — `brew install xcodegen` once.
+1. **Requirements**: macOS with full Xcode (not just Command Line Tools), **Xcode 15.4+** — Swift 5.10 / iOS 17 SDK. CI builds and tests with Xcode 16.4 (`.github/workflows/ci.yml`); the repo also builds on Xcode 16/26 (verified locally on 26.4). `xcodegen` for regenerating the iOS app project — `brew install xcodegen` once.
 2. **Clone** this repo, then `cd GymBuddy`.
 3. **Run the full test suite** (pure-Swift packages, no Xcode project needed):
 
@@ -132,16 +132,12 @@ It synthesizes a 13-rep push-up stream with a fatigue ramp, pipes it through the
 
 ## App setup
 
-The SwiftPM workspace produces *library* modules and the CLI executable, but cannot produce an iOS app — that requires an Xcode project. To wire the app target:
-
-1. In Xcode, create a new **iOS App** target at `GymBuddy/App/GymBuddyApp.xcodeproj`.
-2. Delete the stock `ContentView.swift` / `<AppName>App.swift` and add the existing sources under `App/GymBuddyApp/` to the target.
-3. Set **Info.plist path** to `App/GymBuddyApp/Info.plist`.
-4. In target dependencies, add every SwiftPM library from the workspace: `CoachingEngine`, `PoseVision`, `VoiceIO`, `LLMClient`, `Persistence`, `HealthKitBridge`, `DesignSystem`, `Telemetry`.
-5. Add the `App/GymBuddyAppUITests/` folder as a UI Test target and link it back to the app.
-6. Build to a simulator or device.
-
-A future chore will add a Tuist/XcodeGen config so this is one command.
+The SwiftPM workspace produces *library* modules and the CLI executable, but cannot
+produce an iOS app — that requires an Xcode project. `project.yml` defines the app
+and UI-test targets against the SwiftPM libraries, and `xcodegen generate --spec
+project.yml` writes `GymBuddyApp.xcodeproj` from it (step 4 above). The project is
+not committed; CI runs the same command before it builds the app and runs the UI
+tests.
 
 ---
 
