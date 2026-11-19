@@ -83,10 +83,4 @@ public final class FixturePoseDetector: PoseDetecting, @unchecked Sendable {
             self.continuation?.finish()
         }
     }
-
-    /// Convenience: build a list of body states directly, no async plumbing.
-    /// Handy for pure-engine unit tests that don't need a live stream.
-    public static func synchronousReplay(samples: [PoseSample]) -> [BodyState] {
-        samples.map { .pose($0) }
-    }
 }

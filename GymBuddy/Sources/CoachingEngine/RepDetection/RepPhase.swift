@@ -9,6 +9,4 @@ public enum RepPhase: String, Codable, Sendable {
     case descending   // moving through the eccentric phase
     case bottom       // at bottom of rep, brief dwell
     case ascending    // moving through the concentric phase
-
-    public var isInSet: Bool { self != .idle }
 }

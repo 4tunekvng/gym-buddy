@@ -79,7 +79,6 @@ public enum DumbbellRowCues {
         // A simple per-sample filter won't suffice; we need history. Keep a small
         // ring buffer via an actor-less simple approach using per-instance state.
         public init() {}
-        public let cueTypeForFixtureNaming = "torso_instability"
         private final class History {
             var hipXs: [Double] = []
             func note(_ x: Double) {

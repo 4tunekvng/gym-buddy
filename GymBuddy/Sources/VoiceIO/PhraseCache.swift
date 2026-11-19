@@ -94,8 +94,6 @@ public final class PhraseCache: @unchecked Sendable {
         playCounts.removeAll()
     }
 
-    public var phraseIds: Set<PhraseID> { Set(variants.keys) }
-
     /// Validate the cache against a required manifest. Returns the phrase IDs
     /// that lack variants in this cache.
     public func validate(required: [PhraseID]) -> [PhraseID] {

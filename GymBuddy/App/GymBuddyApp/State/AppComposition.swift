@@ -180,46 +180,6 @@ final class AppComposition: ObservableObject {
         }
         return PhraseCache(variants: variants, windowSize: 3)
     }
-
-    /// Preview/in-memory composition. Used by SwiftUI previews and the XCUITest
-    /// target so UI flows run without touching real storage or vendor APIs.
-    /// Same crash-on-both-fail policy as production (see `openContainer`) —
-    /// if SwiftData can't open even an in-memory container, the app is
-    /// fundamentally broken and there's nothing useful to degrade to.
-    static func makePreview() -> AppComposition {
-        guard let container = try? GymBuddyStore.inMemoryContainer() else {
-            fatalError("SwiftData in-memory container unavailable — previews cannot run.")
-        }
-        return AppComposition(
-            telemetry: NoOpTelemetryLog(),
-            runtimeConfig: AppRuntimeConfiguration(
-                poseMode: .demo,
-                llmMode: .mock,
-                voiceMode: .mock,
-                anthropicAPIKey: nil,
-                anthropicBaseURL: nil,
-                scriptedDemoPlaybackRate: 1.0,
-                fixedToday: nil,
-                resetsStore: false
-            ),
-            runtimeStatus: AppRuntimeStatus(
-                pose: .scriptedDemoForced,
-                llm: .deterministicFallback,
-                voice: .mock
-            ),
-            poseDetectorFactory: { FixturePoseDetector(samples: SyntheticPoseGenerator.pushUps(repCount: 5)) },
-            voicePlayer: MockVoicePlayer(),
-            phraseCache: bootstrapPhraseCache(),
-            llmClient: MockLLMClient(),
-            health: MockHealthReader(),
-            userProfileRepo: InMemoryUserProfileRepository(),
-            planRepo: InMemoryPlanRepository(),
-            sessionRepo: InMemorySessionRepository(),
-            memoryRepo: InMemoryMemoryRepository(),
-            readinessRepo: InMemoryReadinessRepository(),
-            modelContainer: container
-        )
-    }
 }
 
 #endif

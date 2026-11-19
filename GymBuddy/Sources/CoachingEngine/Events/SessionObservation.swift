@@ -42,6 +42,5 @@ public struct SessionObservation: Equatable, Codable, Sendable {
     public var fullReps: Int { repEvents.filter { !$0.isPartial }.count }
     public var partialReps: Int { repEvents.filter { $0.isPartial }.count }
 
-    public var hadAnyCues: Bool { !cueEvents.isEmpty }
     public var safetyCueCount: Int { cueEvents.filter { $0.severity == .safety }.count }
 }

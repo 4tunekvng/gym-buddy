@@ -30,6 +30,4 @@ public struct RepEvent: Equatable, Codable, Sendable {
         self.rangeOfMotionScore = rangeOfMotionScore
         self.isPartial = isPartial
     }
-
-    public var totalDuration: TimeInterval { endedAt - startedAt }
 }

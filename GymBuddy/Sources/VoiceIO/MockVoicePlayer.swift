@@ -50,12 +50,6 @@ public actor MockVoicePlayer: VoicePlaying {
         }
     }
 
-    public func streamHistory() -> [(text: String, tone: CoachingTone)] {
-        history.compactMap {
-            if case .stream(let t, let tone) = $0.kind { return (t, tone) } else { return nil }
-        }
-    }
-
     public func reset() {
         history.removeAll()
         streamBuffer = ""
