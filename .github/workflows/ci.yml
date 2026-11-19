@@ -48,14 +48,23 @@ jobs:
         shell: bash
     env:
       DESTINATION: platform=iOS Simulator,name=iPhone 16,OS=18.5
+      # Pinned like SwiftLint below: an unpinned `brew install` would take
+      # whatever release landed that day and could change the project.
+      XCODEGEN_VERSION: 2.45.4
     steps:
       - uses: actions/checkout@v4
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_16.4.app
+      - name: Install XcodeGen (pinned)
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/xcodegen.zip" \
+            "https://github.com/yonaskolb/XcodeGen/releases/download/${XCODEGEN_VERSION}/xcodegen.zip"
+          unzip -o -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"
       - name: Generate Xcode project
         # The project is not committed; project.yml is its source of truth.
         run: |
-          brew install xcodegen
+          xcodegen --version
           xcodegen generate --spec project.yml
       - name: Build for iOS simulator
         run: |
