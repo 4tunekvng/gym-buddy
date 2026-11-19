@@ -8,8 +8,7 @@ final class SettingsPersistsUITest: XCTestCase {
 
     func testTonePickerPersistsAcrossRelaunch() throws {
         let app = XCUIApplication()
-        UITestSupport.configureForScriptedDemo(app)
-        app.launch()
+        UITestSupport.launchFresh(app)
 
         // First-run or carryover state from a prior test. Either land on welcome
         // (onboard) or land on today (already onboarded). Either path ends on

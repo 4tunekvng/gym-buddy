@@ -8,8 +8,7 @@ final class ChaosUITest: XCTestCase {
     /// Today without spinning or crashing.
     func testRapidOnboardingTapsLandOnToday() throws {
         let app = XCUIApplication()
-        UITestSupport.configureForScriptedDemo(app)
-        app.launch()
+        UITestSupport.launchFresh(app)
 
         if app.buttons["welcome_start_button"].waitForExistence(timeout: 3) {
             app.buttons["welcome_start_button"].tap()

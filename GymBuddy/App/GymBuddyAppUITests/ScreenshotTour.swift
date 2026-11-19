@@ -11,8 +11,7 @@ final class ScreenshotTour: XCTestCase {
 
     func testCaptureEveryScreen() throws {
         let app = XCUIApplication()
-        UITestSupport.configureForScriptedDemo(app)
-        app.launch()
+        UITestSupport.launchFresh(app)
 
         var stepIdx = 1
 

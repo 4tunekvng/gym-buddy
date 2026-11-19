@@ -127,6 +127,17 @@ public enum GymBuddyStore {
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         return try ModelContainer(for: schema, migrationPlan: GymBuddyMigrationPlan.self, configurations: configuration)
     }
+
+    /// Delete every stored row, leaving the schema in place: the state of a
+    /// fresh install. Debug builds call this when UI tests ask for it, so no
+    /// test sees an earlier test's profile or sessions.
+    public static func eraseAll(in container: ModelContainer) throws {
+        let context = ModelContext(container)
+        for model in GymBuddySchemaV1.models {
+            try context.delete(model: model)
+        }
+        try context.save()
+    }
 }
 
 #endif

@@ -147,6 +147,7 @@ tests.
 - **Full Xcode is required** for iOS builds. The Command Line Tools Swift toolchain alone cannot currently build SwiftPM manifests on macOS 15/26 due to a known linker issue; CI must use the full Xcode.
 - **LLM calls are live only when configured.** Set `ANTHROPIC_API_KEY` (or `GYMBUDDY_ANTHROPIC_API_KEY`) to enable the real Anthropic client; otherwise the app stays on the deterministic fallback path and says so in the UI.
 - **UI tests now force scripted demo mode intentionally.** They set `GYMBUDDY_POSE_MODE=demo`, `GYMBUDDY_LLM_MODE=mock`, `GYMBUDDY_VOICE_MODE=mock`, and `GYMBUDDY_SCRIPTED_DEMO_PLAYBACK_RATE=3.0` so the end-to-end app tests remain deterministic without pretending the live camera path is under test or dragging the hero flow out unnecessarily.
+- **UI tests pin the day and start empty.** Debug builds read `GYMBUDDY_TODAY=yyyy-MM-dd` as today (the tests use a Monday, which every plan trains on) and `GYMBUDDY_RESET_STORE=1` to erase saved data at launch, so a test never depends on the weekday or on an earlier test's sessions. Release builds ignore both.
 
 ---
 
