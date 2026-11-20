@@ -8,21 +8,9 @@ final class SettingsPersistsUITest: XCTestCase {
 
     func testTonePickerPersistsAcrossRelaunch() throws {
         let app = XCUIApplication()
-        UITestSupport.launchFresh(app)
-
-        // First-run or carryover state from a prior test. Either land on welcome
-        // (onboard) or land on today (already onboarded). Either path ends on
-        // screen_today.
-        if app.buttons["welcome_start_button"].waitForExistence(timeout: 3) {
-            app.buttons["welcome_start_button"].tap()
-            let nameField = app.textFields["onboarding_name_field"]
-            _ = nameField.waitForExistence(timeout: 5)
-            nameField.tap()
-            nameField.typeText("QA")
-            app.buttons["onboarding_next"].tap()
-            for _ in 0..<7 { app.buttons["onboarding_next"].tap() }
-        }
-        _ = app.otherElements["screen_today"].waitForExistence(timeout: 10)
+        // The shared helper waits for each onboarding step before tapping;
+        // an unguarded copy of that walk lost taps mid-transition (#18).
+        XCTAssertTrue(UITestSupport.launchAndReachTodayScreen(app))
 
         // Open Settings and switch tone to Intense.
         app.buttons["today_settings_button"].tap()
