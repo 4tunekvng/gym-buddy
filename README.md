@@ -1,10 +1,9 @@
 # Gym Buddy — Product & Build Docs
 
 > **Moved to Maestro.** Gym Buddy's camera rep counting is now part of
-> Maestro's Lift section: https://maestro.fortuneking.dev/lift/camera (code in
-> [4tunekvng/maestro](https://github.com/4tunekvng/maestro), under
-> `src/app/lift/camera/`). Its old address forwards there and its open issues
-> moved there. This repository is archived (read-only).
+> Maestro's Lift section ([about Maestro](https://fortuneking.dev/build?item=maestro);
+> the app and its code are private). Its old address forwards there and its open
+> issues moved there. This repository is archived (read-only).
 
 An iPhone app that aims to replace — and eventually surpass — the experience of working with an elite personal trainer. This folder is the planning package for Chapter 1 (the MVP), the vision arc that follows, and the implementation.
 
